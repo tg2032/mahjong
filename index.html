@@ -20,7 +20,7 @@ header .sub{font-size:12px;opacity:.85}
 .pill .wind{background:#222;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 #doraArea{display:flex;gap:4px;align-items:center}
 #table{display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:auto auto auto;grid-template-areas:". top ." "left center right" ". bottom .";gap:8px;margin:10px 0}
-#seat2{grid-area:top}#seat1{grid-area:left}#seat3{grid-area:right}#seat0{grid-area:bottom}
+#seat2{grid-area:top}#seat3{grid-area:left}#seat1{grid-area:right}#seat0{grid-area:bottom}
 .seat{background:rgba(0,0,0,.25);border-radius:10px;padding:6px;font-size:12px;position:relative;min-height:122px}
 .seat.me{outline:2px solid var(--gold)}
 .seat .nm{font-weight:bold;display:flex;justify-content:space-between}
@@ -63,6 +63,11 @@ button.blue{background:#1e88e5;box-shadow:0 3px 0 #0d47a1}button.green{backgroun
 .card td,.card th{border-bottom:1px solid #ddd;padding:4px 6px;text-align:left}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .kbd{background:#eee;border-radius:4px;padding:1px 6px;font-size:12px}
+.die{width:64px;height:64px;background:#fff;border-radius:12px;box-shadow:inset -3px -3px 0 #ccc,0 3px 6px rgba(0,0,0,.3);display:inline-grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;margin:0 8px}
+.die i{width:13px;height:13px;border-radius:50%;margin:auto}.die i.on{background:#222}.die.one i.on{background:#d32f2f;width:18px;height:18px}
+#diceFaces{text-align:center;margin:14px 0;min-height:70px}#diceFaces.roll .die{animation:shake .12s infinite}
+@keyframes shake{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg) translateY(-4px)}100%{transform:rotate(-8deg)}}
+#diceText{text-align:center;font-weight:bold;min-height:24px}
 @media(max-width:720px){#table{grid-template-columns:1fr 1.2fr 1fr;grid-template-rows:130px 140px 130px}.tile{width:33px;height:48px;font-size:16px}header h1{font-size:15px}}
 </style>
 </head>
@@ -71,7 +76,8 @@ button.blue{background:#1e88e5;box-shadow:0 3px 0 #0d47a1}button.green{backgroun
 <div><h1>🀄 ブラウザ麻雀 v2</h1><div class="sub">4人打ち / 単一ファイル / GitHub Pages対応</div></div>
 <div>
 <button class="dark" id="helpBtn" style="padding:8px 12px;font-size:13px">遊び方</button>
-<button class="dark" id="soundBtn" style="padding:8px 12px;font-size:13px">音:ON</button>
+<button class="dark" id="soundBtn" style="padding:8px 12px;font-size:13px">効果音:ON</button>
+<button class="dark" id="voiceBtn" style="padding:8px 12px;font-size:13px">声:ON</button>
 <button class="dark" id="testBtn" style="padding:8px 12px;font-size:13px">自己診断</button>
 </div>
 </header>
@@ -91,6 +97,7 @@ button.blue{background:#1e88e5;box-shadow:0 3px 0 #0d47a1}button.green{backgroun
 <div id="wallbar"><i id="wallfill"></i></div>
 <div id="wallInfo" style="font-size:12px">残り -</div>
 <div id="turnInfo">開始を押してください</div>
+<div style="display:flex;gap:6px;align-items:center;font-size:12px">CPUの強さ <select id="cpuLevel" style="padding:4px 6px;border-radius:6px;font-size:13px"><option value="0">弱い</option><option value="1" selected>普通</option><option value="2">強い</option></select></div>
 <div style="display:flex;gap:8px"><button id="startBtn" class="green">対局開始</button></div>
 </div>
 <div class="seat" id="seat0"></div>
@@ -104,12 +111,14 @@ button.blue{background:#1e88e5;box-shadow:0 3px 0 #0d47a1}button.green{backgroun
 </div>
 
 <div class="modal" id="resultModal"><div class="card"><h2 id="resTitle"></h2><div id="resHand"></div><table id="resTable"></table><div id="resScore" style="font-weight:bold"></div><div class="row"><button id="nextBtn" class="green">次局へ</button></div></div></div>
+<div class="modal" id="diceModal"><div class="card"><h2>🎲 親決め</h2><p style="font-size:13px">サイコロを2個振り、出目の合計で親を決めます。(1=あなた、2=下家、3=対面、4=上家…と反時計回りに数える)</p><div id="diceFaces"></div><div id="diceText"></div><div class="row" style="justify-content:center"><button id="diceBtn" class="green">サイコロを振る</button></div></div></div>
 <div class="modal" id="helpModal"><div class="card"><h2>遊び方</h2>
-<p style="font-size:13px;line-height:1.7">あなたは南家(下側)。CPU3人と東1〜東4局を打ちます。25000点持ち。<br>
+<p style="font-size:13px;line-height:1.7">あなたは画面下。座席は反時計回りで、右が下家・上が対面・左が上家です。親はサイコロで決まり、CPU3人と東1〜東4局を打ちます。25000点持ち。CPUの強さは対局開始前に選べます。<br>
 ・ツモ牌は金枠。捨てたい牌をクリック / 右側の<span class="kbd">ツモ切り</span>でも可<br>
 ・鳴き・ロン・ツモ・リーチ・カンは中央下のボタンで選択。チーは自分の上家(左側のプレイヤー)の捨牌からのみ可能です<br>
 ・リーチは門前テンパイ・残り4枚以上・1000点以上で可能。一発・裏ドラ・赤ドラ(5萬/5筒/5索に各1枚)・カンドラあり<br>
 ・フリテン(同順見逃し+同巡内)はロン不可。テンパイ時は待ち表示が出ます<br>
+・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
 
@@ -227,7 +236,12 @@ function souSVG(n,aka){
  }
  return `<svg viewBox="0 0 36 48">${s}</svg>`;
 }
-let soundOn=true;let AC=null;
+let soundOn=true,voiceOn=true;let AC=null;
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+soundOn=lsGet('mj_sound','1')==='1';voiceOn=lsGet('mj_voice','1')==='1';
+function say(t){if(!voiceOn)return;try{const ss=window.speechSynthesis;if(!ss||typeof SpeechSynthesisUtterance==='undefined')return;const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';u.rate=1.1;u.pitch=1.1;ss.speak(u);}catch(e){}}
+function LV(){const e=document.getElementById('cpuLevel');const v=e?+e.value:1;return v>=0&&v<=2?v:1;}
 function beep(f=440,d=0.07){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.value=0.08;o.start();o.stop(AC.currentTime+d);}catch(e){}}
 let S=null;let actId=0;
 function log(m){const e=document.getElementById('log');const d=document.createElement('div');d.textContent=m;e.appendChild(d);e.scrollTop=1e9;}
@@ -480,7 +494,27 @@ function buildWall(){let w=[];TYPES.forEach(t=>{for(let k=0;k<4;k++)w.push(t);})
 // 赤ドラ化: m5/p5/s5 の1枚を0に
 [['m5','m0'],['p5','p0'],['s5','s0']].forEach(([a,b])=>{const i=w.indexOf(a);if(i>=0)w[i]=b;});
 return shuffle(w);}
-function newGame(){S={scores:[25000,25000,25000,25000],round:0,honba:0,kyotaku:0,oya:0};log('対局開始: 東1局〜東4局');startKyoku();}
+const DIE_PIPS={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+function dieHTML(n){let q='';for(let k=1;k<=9;k++)q+=`<i class="${DIE_PIPS[n].includes(k)?'on':''}"></i>`;return `<div class="die${n===1?' one':''}">${q}</div>`;}
+function rollTwoDice(){return[1+((Math.random()*6)|0),1+((Math.random()*6)|0)];}
+function oyaFromDice(sum){return(sum-1)%4;}
+function newGame(oya){
+if(oya===undefined){const d=rollTwoDice();oya=oyaFromDice(d[0]+d[1]);}
+S={scores:[25000,25000,25000,25000],round:0,honba:0,kyotaku:0,oya};log(`対局開始: 東1局〜東4局 / 親:${seatName(oya)} / CPU:${['弱い','普通','強い'][LV()]}`);startKyoku();}
+function openDiceModal(){
+const faces=document.getElementById('diceFaces'),txt=document.getElementById('diceText'),btn=document.getElementById('diceBtn');
+let phase='ready',oya=0,timer=null;
+faces.className='';faces.innerHTML=dieHTML(1)+dieHTML(1);txt.textContent='';btn.textContent='サイコロを振る';btn.disabled=false;
+document.getElementById('diceModal').classList.add('open');
+btn.onclick=()=>{
+ if(phase==='ready'){
+  phase='rolling';btn.disabled=true;faces.className='roll';let n=0;
+  timer=setInterval(()=>{const d=rollTwoDice();faces.innerHTML=dieHTML(d[0])+dieHTML(d[1]);beep(300+n*20,0.03);
+   if(++n>=14){clearInterval(timer);faces.className='';
+    const sum=d[0]+d[1];oya=oyaFromDice(sum);txt.textContent=`合計 ${sum} → ${seatName(oya)}が親(東家)`;log(`親決め: サイコロ ${d[0]}+${d[1]}=${sum} → ${seatName(oya)}が親`);
+    btn.textContent='対局開始';btn.disabled=false;phase='done';}},80);
+ }else if(phase==='done'){document.getElementById('diceModal').classList.remove('open');newGame(oya);}
+};}
 function startKyoku(){actId++;const myAct=actId;
 const wall=buildWall();const dead=wall.splice(0,14);
 S.wall=wall;S.dead=dead;S.rinTiles=dead.slice(0,4);S.doraInd=[dead[4]];S.ura=[dead[5]];S.kanCount=0;
@@ -565,7 +599,7 @@ if(shantenAll(tmp,S.melds[0].length)!==0){
 S.riichiWait=false;
 const t=h[idx];h.splice(idx,1);
 S.scores[0]-=1000;S.kyotaku++;S.riichi[0]=true;S.ippatsu[0]=true;S.riichiIdx=S.riichiIdx||{};S.riichiIdx[0]=S.rivers[0].length;
-S.rivers[0].push(t);S.drawn=null;S.drawnIdx=-1;log(`あなた: リーチ! → ${baseOf(t)}`);beep(880,0.12);render();afterDiscard(0,t);}
+S.rivers[0].push(t);S.drawn=null;S.drawnIdx=-1;say('リーチ');log(`あなた: リーチ! → ${baseOf(t)}`);beep(880,0.12);render();afterDiscard(0,t);}
 function kanTiles(p){const c=countsOf(S.hands[p]);const res=[];for(let i=0;i<34;i++)if(c[i]===4)res.push(TYPES[i]);return res;}
 function doAnkan(p,t){
 if(S.kanCount>=4||S.rinTiles.length===0)return;
@@ -576,7 +610,7 @@ S.melds[p].push({type:'ankan',tiles:taken,closed:true});
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
 const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){sortHand(h);S.drawn=rin;S.drawnIdx=h.lastIndexOf(rin);}
-log(`${seatName(p)}: 暗槓 ${base} → 嶺上`);render();
+say('カン');log(`${seatName(p)}: 暗槓 ${base} → 嶺上`);render();
 if(p===0){document.getElementById('turnInfo').textContent='嶺上牌: 捨てる牌をクリック';const btns=[];if(isAgari(h)){const info=scoreInfo(0,h,S.drawn,true);if(info.han>0)btns.push({label:`ツモ ${info.han}翻`,cls:'green',onClick:()=>doTsumo(0)});}setControls(btns);}
 else setTimeout(()=>aiDiscard(p),500);}
 // ---- 捨牌共通 ----
@@ -611,7 +645,7 @@ function aiCallAfterPass(from,tile){
  // プレイヤーがパスした後、AIのポン・チーを判定(ロンなしの場合)
  for(let k=1;k<=3;k++){const p=(from+k)%4;if(p===0)continue;
   if(canPon(S.hands[p],tile)&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<aiPonRate(p,tile)){S.ippatsu=[false,false,false,false];doPon(p,from,tile);return true;}
-  if(k===1){const o=chiOptionsFor(S.hands[p],tile,from,p);if(o.length&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<0.35){S.ippatsu=[false,false,false,false];doChi(p,from,tile,o[0]);return true;}}}
+  if(k===1){const o=chiOptionsFor(S.hands[p],tile,from,p);if(o.length&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<[0.15,0.35,0.45][LV()]){S.ippatsu=[false,false,false,false];doChi(p,from,tile,o[0]);return true;}}}
  return false;}
 function afterDiscard(from,tile){
 if(S.over)return;const myAct=actId;
@@ -634,7 +668,7 @@ if(ronList.length){doRon(ronList[0],from,tile);return;}
 // AI鳴き
 for(let k=1;k<=3;k++){const p=(from+k)%4;if(p===0)continue;
 if(canPon(S.hands[p],tile)&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<aiPonRate(p,tile)){S.ippatsu=[false,false,false,false];doPon(p,from,tile);return;}
-if(k===1){const o=chiOptionsFor(S.hands[p],tile,from,p);if(o.length&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<0.35){S.ippatsu=[false,false,false,false];doChi(p,from,tile,o[0]);return;}}}
+if(k===1){const o=chiOptionsFor(S.hands[p],tile,from,p);if(o.length&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<[0.15,0.35,0.45][LV()]){S.ippatsu=[false,false,false,false];doChi(p,from,tile,o[0]);return;}}}
 if(S.wall.length===0){ryukyoku();return;}
 S.turn=next;render();
 if(S.turn===0)setTimeout(()=>{if(myAct===actId)playerDraw(false);},450);
@@ -663,14 +697,14 @@ function doPon(p,from,tile){
 S.rivers[from].pop();const h=S.hands[p];const b=baseOf(tile);
 const taken=[];for(let i=h.length-1;i>=0&&taken.length<2;i--){if(baseOf(h[i])===b){taken.push(h.splice(i,1)[0]);}}
 S.melds[p].push({type:'pon',tiles:[...taken, tile].map(x=>x),closed:false});
-log(`${seatName(p)}: ポン ${b}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();beep(500,0.06);
+say('ポン');log(`${seatName(p)}: ポン ${b}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();beep(500,0.06);
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='ポン: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doChi(p,from,tile,opt){
 S.rivers[from].pop();const h=S.hands[p];
 const taken=opt.map(b=>{const i=h.map(baseOf).indexOf(b);return i>=0?h.splice(i,1)[0]:b;});
 S.melds[p].push({type:'chi',tiles:[...taken,tile],closed:false});
-log(`${seatName(p)}: チー ${opt.join(' ')}+${baseOf(tile)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();
+say('チー');log(`${seatName(p)}: チー ${opt.join(' ')}+${baseOf(tile)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='チー: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doMinkan(p,from,tile){
@@ -681,10 +715,11 @@ S.melds[p].push({type:'kan',tiles:[...taken, tile],closed:false});
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
 const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){sortHand(h);S.drawn=rin;S.drawnIdx=h.lastIndexOf(rin);}
-log(`${seatName(p)}: 大明槓`);S.turn=p;S.waiting=false;render();
+say('カン');log(`${seatName(p)}: 大明槓`);S.turn=p;S.waiting=false;render();
 if(p===0){document.getElementById('turnInfo').textContent='嶺上: 捨てる牌をクリック';setControls([]);}else setTimeout(()=>aiDiscard(p),600);}
 // ---- AI ----
-function aiPonRate(p,tile){
+function aiPonRate(p,tile){return Math.min(0.95,aiPonRateBase(p,tile)*[0.5,1,1.3][LV()]);}
+function aiPonRateBase(p,tile){
 const b=baseOf(tile);
 // 役牌は積極的
 if(['z5','z6','z7'].includes(b))return 0.75;
@@ -696,15 +731,15 @@ if(!S||S.over||S.turn===0||S.waiting)return;
 if(S.wall.length===0){ryukyoku();return;}
 const p=S.turn;
 const t=S.wall.pop();S.hands[p].push(t);S.drawn=t;S.furitenTemp[p]=false;render();beep(660,0.04);
-if(isAgari(S.hands[p])){const info=scoreInfo(p,S.hands[p],S.drawn,true);if(info.han>0&&Math.random()<0.92){setTimeout(()=>doTsumo(p),450);return;}}
+if(isAgari(S.hands[p])){const info=scoreInfo(p,S.hands[p],S.drawn,true);if(info.han>0&&Math.random()<[0.8,0.92,1][LV()]){setTimeout(()=>doTsumo(p),450);return;}}
 const kc=kanTiles(p);
-if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[p]&&Math.random()<0.25){setTimeout(()=>doAnkan(p,kc[0]),450);return;}
-const wantRiichi=!S.riichi[p]&&isClosed(p)&&S.scores[p]>=1000&&S.wall.length>4&&Math.random()<0.45&&canRiichi(p);
+if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[p]&&Math.random()<[0.4,0.25,0.1][LV()]){setTimeout(()=>doAnkan(p,kc[0]),450);return;}
+const wantRiichi=!S.riichi[p]&&isClosed(p)&&S.scores[p]>=1000&&S.wall.length>4&&Math.random()<[0.3,0.45,0.85][LV()]&&canRiichi(p);
 setTimeout(()=>aiDiscard(p,wantRiichi),520);}
 function aiRiichiDiscard(p,idx){
 const t=S.hands[p][idx];S.hands[p].splice(idx,1);
 S.scores[p]-=1000;S.kyotaku++;S.riichi[p]=true;S.ippatsu[p]=true;S.riichiIdx=S.riichiIdx||{};S.riichiIdx[p]=S.rivers[p].length;
-S.rivers[p].push(t);S.drawn=null;S.drawnIdx=-1;S.rinshan=false;log(`${seatName(p)}: リーチ!`);render({from:p});beep(500,0.08);
+S.rivers[p].push(t);S.drawn=null;S.drawnIdx=-1;S.rinshan=false;say('リーチ');log(`${seatName(p)}: リーチ!`);render({from:p});beep(500,0.08);
 afterDiscard(p,t);}
 function dangerOf(t,p){
 // 他家リーチ者への危険度: 現物なら0、筋・字牌なら低
@@ -725,19 +760,32 @@ if(riichiIntent&&isClosed(p)){
   aiRiichiDiscard(p,bi);return;
  }
 }
-let best=0,bestScore=1e9;
-const fold=S.riichi.some((r,q)=>r&&q!==p)&&shantenAll(h,S.melds[p].length)>1;
-for(let i=0;i<h.length;i++){const tmp=h.slice();tmp.splice(i,1);const s=shantenAll(tmp,S.melds[p].length);
-let score=s*10+Math.random()*1.5;
+const L=LV();
+if(L===0&&Math.random()<0.2){doDiscard(p,(Math.random()*h.length)|0,false);return;}
+const m0=S.melds[p].length;
+const fold=S.riichi.some((r,q)=>r&&q!==p)&&shantenAll(h,m0)>(L===2?0:1);
+const noise=[5,1.5,0.3][L],dW=[0,1,2][L],sW=(L===2&&fold)?3:10;
+const cand=[];
+for(let i=0;i<h.length;i++){const tmp=h.slice();tmp.splice(i,1);const s=shantenAll(tmp,m0);
+let score=s*sW+Math.random()*noise;
 const b=baseOf(h[i]);
-// 効率: 孤立牌を切る(対子・塔子を残す簡易)
 const cnt=countsOf(h);const idx=T2I[b];
 if(cnt[idx]>=2)score-=2; // 対子残す
 if(isYao(b))score+=fold?-3:0.8; // オリ時は字牌から、攻め時は端牌から
-score+=dangerOf(h[i],p);
+score+=dangerOf(h[i],p)*dW;
 if(isAka(h[i]))score+=3; // 赤は残す
-if(score<bestScore){bestScore=score;best=i;}}
+cand.push({i,s,score});}
+if(L===2&&!fold){ // 強い: 受け入れ枚数(牌効率)で比較
+ const minS=Math.min(...cand.map(c=>c.s));const memo={};
+ cand.forEach(c=>{if(c.s!==minS)return;const k=baseOf(h[c.i]);if(!(k in memo))memo[k]=ukeireOf(h,c.i,p);c.score-=memo[k]*0.25;});
+}
+let best=0,bestScore=1e9;cand.forEach(c=>{if(c.score<bestScore){bestScore=c.score;best=c.i;}});
 doDiscard(p,best,false);}
+function ukeireOf(hand,idx,p){
+const tmp=hand.slice();tmp.splice(idx,1);const m0=S.melds[p].length;const base=shantenAll(tmp,m0);
+const c=countsOf(tmp);const seen=countsOf(S.rivers.flat().concat(S.melds.flat().flatMap(m=>m.tiles)));
+let n=0;for(let t=0;t<34;t++){const rem=4-c[t]-seen[t];if(rem<=0)continue;if(shantenAll(tmp.concat([TYPES[t]]),m0)<base)n+=rem;}
+return n;}
 // ---- 点数情報 ----
 function scoreInfo(p,hand,winTile,tsumo){
 const wallEmpty=S.wall.length===0;
@@ -768,7 +816,7 @@ let gain=0;
 if(dealer){gain=sc.all*3+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=sc.all+S.honba*100;}S.scores[p]+=gain;}
 else{gain=sc.dealer+sc.child*2+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=((i===S.oya?sc.dealer:sc.child)+S.honba*100);}S.scores[p]+=gain;}
 beep(880,0.2);setTimeout(()=>beep(1320,0.25),150);
-log(`🎉 ${seatName(p)} ツモ ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain}`);
+say('ツモ');log(`🎉 ${seatName(p)} ツモ ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain}`);
 render();
 showResult(`${seatName(p)} ツモ!`,S.hands[p],S.melds[p],info.yaku,`${info.han}翻 ${info.fu}符 +${gain}点 (本場${S.honba} 供託${S.kyotaku})`,()=>nextKyoku(p===S.oya));}
 function doRon(p,from,tile){
@@ -781,7 +829,7 @@ const baseGain=sc.ron+S.honba*300;
 S.scores[from]-=baseGain;S.scores[p]+=baseGain+S.kyotaku*1000;
 const gain=baseGain+S.kyotaku*1000;
 beep(880,0.2);
-log(`🎉 ${seatName(p)} ロン ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain} 放銃:${seatName(from)}`);
+say('ロン');log(`🎉 ${seatName(p)} ロン ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain} 放銃:${seatName(from)}`);
 render();
 showResult(`${seatName(p)} ロン!`,hand,S.melds[p],info.yaku,`${info.han}翻 ${info.fu}符 +${gain}点`,()=>nextKyoku(p===S.oya));}
 function ryukyoku(){
@@ -875,11 +923,15 @@ ok('チー可(上家から)',chiOptionsFor(['m1','m2'],'m3',3,0).length>0);
 finally{S=saved;}
 alert(out.join('\n'));}
 // ---- 配線 ----
-document.getElementById('startBtn').onclick=e=>{e.target.style.display='none';newGame();};
+document.getElementById('startBtn').onclick=e=>{e.target.style.display='none';openDiceModal();};
 document.getElementById('nextBtn').onclick=()=>document.getElementById('resultModal').classList.remove('open');
 document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.add('open');
 document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').classList.remove('open');
-document.getElementById('soundBtn').onclick=e=>{soundOn=!soundOn;e.target.textContent='音:'+(soundOn?'ON':'OFF');};
+function syncAudioBtns(){document.getElementById('soundBtn').textContent='効果音:'+(soundOn?'ON':'OFF');document.getElementById('voiceBtn').textContent='声:'+(voiceOn?'ON':'OFF');}
+document.getElementById('soundBtn').onclick=()=>{soundOn=!soundOn;lsSet('mj_sound',soundOn?'1':'0');syncAudioBtns();};
+document.getElementById('voiceBtn').onclick=()=>{voiceOn=!voiceOn;lsSet('mj_voice',voiceOn?'1':'0');syncAudioBtns();try{if(!voiceOn&&window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}if(voiceOn)say('声オン');};
+syncAudioBtns();
+(function(){const sel=document.getElementById('cpuLevel');const v=lsGet('mj_level','1');if(['0','1','2'].includes(v))sel.value=v;sel.onchange=()=>lsSet('mj_level',sel.value);})();
 document.getElementById('testBtn').onclick=selfTest;
 document.getElementById('sortBtn').onclick=()=>{if(S){sortHand(S.hands[0]);render();}};
 document.getElementById('tsumogiriBtn').onclick=()=>{if(S&&S.turn===0&&!S.waiting&&!S.over&&S.drawnIdx>=0){onPlayerDiscard(S.drawnIdx);}};
