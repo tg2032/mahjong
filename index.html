@@ -42,6 +42,8 @@ header .sub{font-size:12px;opacity:.85}
 .tile.draw{box-shadow:inset -2px -3px 0 #b9b2a0,inset 2px 2px 0 #fff,0 0 0 3px var(--gold),0 2px 8px rgba(0,0,0,.5)}
 .tile.last{box-shadow:inset -2px -3px 0 #b9b2a0,0 0 0 3px #29b6f6}
 .tile.tilt{transform:rotate(90deg);margin:0 6px}
+.tile.cand{outline:3px dashed #29b6f6;outline-offset:1px}
+.tile.cand.hot{outline:4px solid #ffeb3b;outline-offset:1px;transform:translateY(-8px);transition:transform .1s}
 /* --- 絵柄(SVG) --- */
 .face{width:100%;height:100%;line-height:1}
 .face svg{width:100%;height:100%;display:block}
@@ -522,7 +524,7 @@ S.hands=[[],[],[],[]];for(let i=0;i<13;i++)for(let p=0;p<4;p++)S.hands[(S.oya+p)
 S.hands[S.oya].push(S.wall.pop());
 S.rivers=[[],[],[],[]];S.melds=[[],[],[],[]];S.riichi=[false,false,false,false];S.ippatsu=[false,false,false,false];S.furitenTemp=[false,false,false,false];S.furitenPerm=[false,false,false,false];S.riichiIdx={};
 S.turn=S.oya;S.drawn=null;S.drawnIdx=-1;S.over=false;S.waiting=false;S.riichiWait=false;S.rinshan=false;
-S.hands.forEach(sortHand);render();
+S.hands.forEach((h,i)=>{if(i===0&&S.oya===0){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);});render();
 log(`--- 東${S.round+1}局 ${S.honba}本場 ドラ:${nextIndicator(S.doraInd[0])} ---`);
 if(S.turn!==0)setTimeout(()=>{if(myAct===actId)aiDraw();},700);else setTimeout(()=>{if(myAct===actId)playerDraw(false);},300);}
 function sortHand(h){h.sort((a,b)=>T2I[a]-T2I[b]||(isAka(a)?1:0)-(isAka(b)?1:0));}
@@ -549,20 +551,28 @@ el.className='seat'+(p===0?' me':'');
 el.innerHTML=`<div class="nm"><span>${seatName(p)} ${p===S.oya?'[親]':''} ${S.riichi[p]?'★R':''}</span><span>${S.scores[p]}</span></div><div style="display:flex;gap:1px;flex-wrap:wrap;margin-top:2px">${p===0?'':back}</div><div class="river">${riv}</div><div class="melds">${meld}</div>`;}
 // 手牌
 const h=document.getElementById('hand');h.innerHTML='';
-S.hands[0].forEach((t,i)=>{const w=document.createElement('span');w.innerHTML=tileHTML(t,i===S.drawnIdx?'draw':'');w.firstChild.onclick=()=>onPlayerDiscard(i);h.appendChild(w);});
+S.hands[0].forEach((t,i)=>{const w=document.createElement('span');w.innerHTML=tileHTML(t,i===S.drawnIdx?'draw':'');if(i===S.drawnIdx&&i>0)w.style.marginLeft='16px';w.firstChild.onclick=()=>onPlayerDiscard(i);h.appendChild(w);});
+paintCand();
 // シャンテン・待ち
 if(!S.over){const sh=shantenAll(S.hands[0],S.melds[0].length);document.getElementById('shantenInfo').textContent=`シャンテン: ${sh>=0?sh+' (聴牌まで'+(sh+1)+'枚交換目安)':'和了形!'}`;
 const h13=S.hands[0].length%3===1?S.hands[0]:null;let waits=h13&&shantenAll(h13,S.melds[0].length)===0?waitsOf(h13):[];
 document.getElementById('tenpaiInfo').textContent=waits.length?`待ち: ${waits.map(baseOf).join(' ')}`:(S.hands[0].length%3===2&&isAgari(S.hands[0])?'← 和了形 ツモ可':'');}
 }
-function setControls(list){const c=document.getElementById('controls');c.innerHTML='';list.forEach(b=>{const btn=document.createElement('button');btn.textContent=b.label;if(b.cls)btn.className=b.cls;btn.disabled=!!b.disabled;btn.onclick=b.onClick;c.appendChild(btn);});}
+function paintCand(){const ch=document.getElementById('hand').children;for(let i=0;i<ch.length;i++){const t=ch[i].firstChild;if(!t||!t.classList)continue;t.classList.toggle('cand',!!(S&&S.candAll&&S.candAll.has(i)));t.classList.toggle('hot',!!(S&&S.candHot&&S.candHot.has(i)));}}
+function setCand(all,hot){if(!S)return;S.candAll=new Set(all||[]);S.candHot=new Set(hot||[]);paintCand();}
+function setCandHot(hot){if(!S)return;S.candHot=new Set(hot||[]);paintCand();}
+function handIdx(bases,fromEnd){const h=S.hands[0];const used=new Set(),res=[];bases.forEach(b=>{let f=-1;if(fromEnd){for(let i=h.length-1;i>=0;i--)if(!used.has(i)&&baseOf(h[i])===b){f=i;break;}}else{for(let i=0;i<h.length;i++)if(!used.has(i)&&baseOf(h[i])===b){f=i;break;}}if(f>=0){used.add(f);res.push(f);}});return res;}
+function riichiIdx(){const h=S.hands[0],res=[];for(let i=0;i<h.length;i++){const tmp=h.slice();tmp.splice(i,1);if(shantenAll(tmp,S.melds[0].length)===0)res.push(i);}return res;}
+function setControls(list){const c=document.getElementById('controls');c.innerHTML='';const all=new Set();list.forEach(b=>{const btn=document.createElement('button');btn.textContent=b.label;if(b.cls)btn.className=b.cls;btn.disabled=!!b.disabled;btn.onclick=b.onClick;
+if(b.hl&&b.hl.length){b.hl.forEach(i=>all.add(i));btn.onmouseenter=btn.onfocus=()=>setCandHot(b.hl);btn.onmouseleave=btn.onblur=()=>setCandHot([]);}
+c.appendChild(btn);});setCand([...all],[]);}
 // ---- 自分ツモ ----
 function playerDraw(isRinshan){
 if(S.over||S.turn!==0)return;
 if(S.wall.length===0){ryukyoku();return;}
 let t;if(S.hands[0].length===14&&!isRinshan){t=S.hands[0][S.hands[0].length-1];}
 else{t=S.wall.pop();S.hands[0].push(t);if(isRinshan)S.rinshan=true;}
-S.drawn=t;S.furitenTemp[0]=false;sortHand(S.hands[0]);S.drawnIdx=S.hands[0].lastIndexOf(t);
+S.drawn=t;S.furitenTemp[0]=false;{const h0=S.hands[0];const d0=h0.pop();sortHand(h0);h0.push(d0);S.drawnIdx=h0.length-1;}
 render();beep(660,0.05);
 document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';
 refreshPlayerButtons();
@@ -572,14 +582,14 @@ if(!S||S.over||S.turn!==0)return;
 const btns=[];
 if(isAgari(S.hands[0])){const info=scoreInfo(0,S.hands[0],S.drawn,true);if(info.han>0)btns.push({label:`ツモ ${info.han}翻${info.fu}符`,cls:'green',onClick:()=>doTsumo(0)});}
 const kc=kanTiles(0);
-if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[0])btns.push({label:`カン ${baseOf(kc[0])}`,cls:'blue',onClick:()=>doAnkan(0,kc[0])});
-if(!S.riichi[0]&&isClosed(0)&&S.scores[0]>=1000&&S.wall.length>4&&canRiichi(0))btns.push({label:'リーチ',cls:'red',onClick:enterRiichi});
+if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[0])btns.push({label:`カン ${baseOf(kc[0])}`,cls:'blue',hl:handIdx([baseOf(kc[0]),baseOf(kc[0]),baseOf(kc[0]),baseOf(kc[0])],false),onClick:()=>{setCand([],[]);doAnkan(0,kc[0]);}});
+if(!S.riichi[0]&&isClosed(0)&&S.scores[0]>=1000&&S.wall.length>4&&canRiichi(0))btns.push({label:'リーチ',cls:'red',hl:riichiIdx(),onClick:enterRiichi});
 if(btns.length)setControls([...btns]);else setControls([]);
 }
 function enterRiichi(){
 S.riichiWait=true;
 setControls([{label:'リーチ取消',cls:'dark',onClick:()=>{S.riichiWait=false;refreshPlayerButtons();document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';}}]);
-document.getElementById('turnInfo').textContent='リーチ: 捨てる牌をクリック(テンパイ維持牌のみ有効)';
+document.getElementById('turnInfo').textContent='リーチ: 捨てる牌をクリック(枠のついた牌のみ有効)';setCand(riichiIdx(),[]);
 }
 function onPlayerDiscard(idx){
 if(!S||S.over||S.waiting||S.turn!==0)return;
@@ -596,8 +606,8 @@ if(shantenAll(tmp,S.melds[0].length)!==0){
  setControls([{label:'リーチ取消',cls:'dark',onClick:()=>{S.riichiWait=false;refreshPlayerButtons();document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';}}]);
  return;
 }
-S.riichiWait=false;
-const t=h[idx];h.splice(idx,1);
+S.riichiWait=false;setCand([],[]);
+const t=h[idx];h.splice(idx,1);sortHand(h);
 S.scores[0]-=1000;S.kyotaku++;S.riichi[0]=true;S.ippatsu[0]=true;S.riichiIdx=S.riichiIdx||{};S.riichiIdx[0]=S.rivers[0].length;
 S.rivers[0].push(t);S.drawn=null;S.drawnIdx=-1;say('リーチ');log(`あなた: リーチ! → ${baseOf(t)}`);beep(880,0.12);render();afterDiscard(0,t);}
 function kanTiles(p){const c=countsOf(S.hands[p]);const res=[];for(let i=0;i<34;i++)if(c[i]===4)res.push(TYPES[i]);return res;}
@@ -609,14 +619,14 @@ if(taken.length!==4){taken.forEach(x=>h.push(x));return;}
 S.melds[p].push({type:'ankan',tiles:taken,closed:true});
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
-const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){sortHand(h);S.drawn=rin;S.drawnIdx=h.lastIndexOf(rin);}
+const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHand(h);h.push(rin);S.drawn=rin;S.drawnIdx=h.length-1;}
 say('カン');log(`${seatName(p)}: 暗槓 ${base} → 嶺上`);render();
 if(p===0){document.getElementById('turnInfo').textContent='嶺上牌: 捨てる牌をクリック';const btns=[];if(isAgari(h)){const info=scoreInfo(0,h,S.drawn,true);if(info.han>0)btns.push({label:`ツモ ${info.han}翻`,cls:'green',onClick:()=>doTsumo(0)});}setControls(btns);}
 else setTimeout(()=>aiDiscard(p),500);}
 // ---- 捨牌共通 ----
 // isRiichiDecl: リーチ宣言牌の打牌(一発成立)。それ以外でリーチ者が打牌したら一発消滅
 function doDiscard(p,idx,isRiichiCut,isRiichiDecl=false){
-const t=S.hands[p][idx];S.hands[p].splice(idx,1);S.rivers[p].push(t);S.drawn=null;S.drawnIdx=-1;S.rinshan=false;
+if(p===0)setCand([],[]);const t=S.hands[p][idx];S.hands[p].splice(idx,1);if(p===0)sortHand(S.hands[0]);S.rivers[p].push(t);S.drawn=null;S.drawnIdx=-1;S.rinshan=false;
 if(isRiichiDecl){S.ippatsu[p]=true;}
 else if(S.riichi[p]){S.ippatsu[p]=false;}
 log(`${seatName(p)}: 切 ${baseOf(t)}${isAka(t)?'(赤)':''}`);render({from:p});beep(300,0.04);
@@ -679,9 +689,9 @@ document.getElementById('turnInfo').textContent=aiRonFirst?`${seatName(from)}の
 const btns=[];
 if(ron){const info=scoreInfo(0,S.hands[0].concat([tile]),tile,false);if(info.han>0)btns.push({label:`ロン ${info.han}翻${info.fu}符`,cls:'green',onClick:()=>{S.waiting=false;doRon(0,from,tile);}});else btns.push({label:'ロン(役なし)',disabled:true});}
 if(!aiRonFirst){
-if(pon)btns.push({label:'ポン',cls:'blue',onClick:()=>{S.waiting=false;S.ippatsu=[false,false,false,false];doPon(0,from,tile);}});
-chi.forEach((o,i)=>btns.push({label:`チー ${o.join(' ')}+${baseOf(tile)}`,cls:'blue',onClick:()=>{S.waiting=false;S.ippatsu=[false,false,false,false];doChi(0,from,tile,o);}}));
-if(minkan)btns.push({label:'カン',cls:'blue',onClick:()=>{S.waiting=false;S.ippatsu=[false,false,false,false];doMinkan(0,from,tile);}});
+if(pon)btns.push({label:'ポン',cls:'blue',hl:handIdx([baseOf(tile),baseOf(tile)],true),onClick:()=>{setCand([],[]);S.waiting=false;S.ippatsu=[false,false,false,false];doPon(0,from,tile);}});
+chi.forEach((o,i)=>btns.push({label:`チー ${o.join(' ')}+${baseOf(tile)}`,cls:'blue',hl:handIdx(o,false),onClick:()=>{setCand([],[]);S.waiting=false;S.ippatsu=[false,false,false,false];doChi(0,from,tile,o);}}));
+if(minkan)btns.push({label:'カン',cls:'blue',hl:handIdx([baseOf(tile),baseOf(tile),baseOf(tile)],true),onClick:()=>{setCand([],[]);S.waiting=false;S.ippatsu=[false,false,false,false];doMinkan(0,from,tile);}});
 }
 btns.push({label:'パス',cls:'dark',onClick:()=>{
 S.waiting=false;setControls([]);
@@ -714,7 +724,7 @@ const taken=[];for(let i=h.length-1;i>=0&&taken.length<3;i--){if(baseOf(h[i])===
 S.melds[p].push({type:'kan',tiles:[...taken, tile],closed:false});
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
-const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){sortHand(h);S.drawn=rin;S.drawnIdx=h.lastIndexOf(rin);}
+const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHand(h);h.push(rin);S.drawn=rin;S.drawnIdx=h.length-1;}
 say('カン');log(`${seatName(p)}: 大明槓`);S.turn=p;S.waiting=false;render();
 if(p===0){document.getElementById('turnInfo').textContent='嶺上: 捨てる牌をクリック';setControls([]);}else setTimeout(()=>aiDiscard(p),600);}
 // ---- AI ----
@@ -933,7 +943,7 @@ document.getElementById('voiceBtn').onclick=()=>{voiceOn=!voiceOn;lsSet('mj_voic
 syncAudioBtns();
 (function(){const sel=document.getElementById('cpuLevel');const v=lsGet('mj_level','1');if(['0','1','2'].includes(v))sel.value=v;sel.onchange=()=>lsSet('mj_level',sel.value);})();
 document.getElementById('testBtn').onclick=selfTest;
-document.getElementById('sortBtn').onclick=()=>{if(S){sortHand(S.hands[0]);render();}};
+document.getElementById('sortBtn').onclick=()=>{if(S){const h=S.hands[0];if(S.drawnIdx>=0&&S.drawnIdx===h.length-1){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);render();}};
 document.getElementById('tsumogiriBtn').onclick=()=>{if(S&&S.turn===0&&!S.waiting&&!S.over&&S.drawnIdx>=0){onPlayerDiscard(S.drawnIdx);}};
 document.addEventListener('keydown',e=>{if((e.key==='t'||e.key==='T')&&S&&S.turn===0&&!S.waiting&&!S.over&&S.drawnIdx>=0&&!document.getElementById('resultModal').classList.contains('open')){onPlayerDiscard(S.drawnIdx);}});
 if(location.search.includes('test=1'))setTimeout(selfTest,500);
