@@ -207,6 +207,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・<span class="kbd">九種九牌</span>(配牌直後の自分のツモ番で、么九牌が9種類以上ならボタンで流局を宣言)と<span class="kbd">四風連打</span>(最初の4打が全員同じ風牌で自動流局)に対応。どちらも親は連荘します<br>
 ・<span class="kbd">四家立直</span>(4人全員がリーチ)と<span class="kbd">四槓散了</span>(4回目のカンが別々の人)は、ロンが出なければ流局。親は連荘、供託は持越しです<br>
 ・<span class="kbd">喰い替え禁止</span>: ポン・チーの直後は、鳴いた牌と同じ牌(チーは反対側の筋の牌も)を捨てられません。捨てられない牌は薄く表示されます<br>
+・<span class="kbd">流し満貫</span>: 荒牌平局のとき、捨牌が全て么九牌で1枚も鳴かれていなければ満貫のツモ和了として精算(ノーテン罰符はなし、親の連荘はテンパイで判定)<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -612,7 +613,7 @@ S.wall=wall;S.dead=dead;S.rinTiles=dead.slice(0,4);S.doraInd=[dead[4]];S.ura=[de
 S.hands=[[],[],[],[]];for(let i=0;i<13;i++)for(let p=0;p<4;p++)S.hands[(S.oya+p)%4].push(S.wall.pop());
 S.hands[S.oya].push(S.wall.pop());
 S.rivers=[[],[],[],[]];S.melds=[[],[],[],[]];S.riichi=[false,false,false,false];S.ippatsu=[false,false,false,false];S.furitenTemp=[false,false,false,false];S.furitenPerm=[false,false,false,false];S.riichiIdx={};
-S.kuikae=null;S.turn=S.oya;S.drawn=null;S.drawnIdx=-1;S.over=false;S.waiting=false;S.riichiWait=false;S.rinshan=false;
+S.called=[false,false,false,false];S.kuikae=null;S.turn=S.oya;S.drawn=null;S.drawnIdx=-1;S.over=false;S.waiting=false;S.riichiWait=false;S.rinshan=false;
 S.hands.forEach((h,i)=>{if(i===S.oya){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);});render();
 log(`--- 東${S.round+1}局 ${S.honba}本場 ドラ:${nextIndicator(S.doraInd[0])} ---`);
 if(S.turn!==0)setTimeout(()=>{if(myAct===actId)aiDraw();},700);else setTimeout(()=>{if(myAct===actId)playerDraw(false);},300);}
@@ -830,14 +831,14 @@ const next=(from+1)%4;S.turn=next;if(S.wall.length===0){ryukyoku();return;}
 if(S.turn===0)playerDraw(false);else aiDraw();}});
 setControls(btns);}
 function doPon(p,from,tile){
-S.rivers[from].pop();const h=S.hands[p];const b=baseOf(tile);
+S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];const b=baseOf(tile);
 const taken=[];for(let i=h.length-1;i>=0&&taken.length<2;i--){if(baseOf(h[i])===b){taken.push(h.splice(i,1)[0]);}}
 S.melds[p].push({type:'pon',tiles:[...taken, tile].map(x=>x),closed:false});
 S.kuikae={p,set:kuikaeSet('pon',tile)};say('ポン');log(`${seatName(p)}: ポン ${b}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();beep(500,0.06);
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='ポン: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doChi(p,from,tile,opt){
-S.rivers[from].pop();const h=S.hands[p];
+S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];
 const taken=opt.map(b=>{const i=h.map(baseOf).indexOf(b);return i>=0?h.splice(i,1)[0]:b;});
 S.melds[p].push({type:'chi',tiles:[...taken,tile].sort((a,b)=>T2I[a]-T2I[b]),closed:false});
 S.kuikae={p,set:kuikaeSet('chi',tile,opt)};say('チー');log(`${seatName(p)}: チー ${opt.join(' ')}+${baseOf(tile)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();
@@ -845,7 +846,7 @@ if(p===0){setControls([]);document.getElementById('turnInfo').textContent='チ�
 else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doMinkan(p,from,tile){
 if(S.kanCount>=4||S.rinTiles.length===0)return;
-S.rivers[from].pop();const h=S.hands[p];const b=baseOf(tile);
+S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];const b=baseOf(tile);
 const taken=[];for(let i=h.length-1;i>=0&&taken.length<3;i--){if(baseOf(h[i])===b){taken.push(h.splice(i,1)[0]);}}
 S.melds[p].push({type:'kan',tiles:[...taken, tile],closed:false});
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
@@ -982,12 +983,26 @@ const show=k=>{const r=res[k];const last=k===res.length-1;
  showResult(`${seatName(r.p)} ロン!${res.length>1?` ダブロン ${k+1}/${res.length}`:''}`,r.hand,S.melds[r.p],r.info.yaku,`${r.info.han}翻 ${r.info.fu}符 +${r.gain}点 放銃:${seatName(from)}`,last?()=>nextKyoku(oyaWin):()=>show(k+1));
  document.getElementById('nextBtn').textContent=last?'次局へ':'次の和了者へ';};
 show(0);}
+// 流し満貫: 捨牌が全て么九牌で、1枚も鳴かれていない
+function nagashiPlayers(){return[0,1,2,3].filter(p=>!S.called[p]&&S.rivers[p].length>0&&S.rivers[p].every(t=>isYao(t)));}
 function ryukyoku(){
 if(S.over)return;S.over=true;setControls([]);
 log('荒牌平局(流局・供託は持越し)');
 const tenpai=S.hands.map((h,i)=>{const hc=h.slice();while(hc.length%3!==1&&hc.length>0)hc.pop();return shantenAll(hc,S.melds[i].length)===0;});
 const n=tenpai.filter(Boolean).length;
 let move='ノーテン罰符なし';
+const ng=nagashiPlayers();
+if(ng.length){
+ // 流し満貫: 満貫のツモ和了として精算(ノーテン罰符はなし)。親の連荘はテンパイで判定
+ ng.forEach(q=>{if(q===S.oya){for(let i=0;i<4;i++)if(i!==q){S.scores[i]-=4000;S.scores[q]+=4000;}}
+  else{for(let i=0;i<4;i++)if(i!==q){const pay=(i===S.oya)?4000:2000;S.scores[i]-=pay;S.scores[q]+=pay;}}});
+ const ngNames=ng.map(seatName).join('・');
+ say('流し満貫');log(`🎉 流し満貫: ${ngNames}`);
+ move='流し満貫(ノーテン罰符なし)';
+ render();
+ showResult('流し満貫',[],[],[['流し満貫',ngNames],['親の連荘',tenpai[S.oya]?'テンパイのため連荘':'ノーテンのため親流れ']],`満貫のツモ和了として精算(供託${S.kyotaku}は次局へ持越し)`,()=>nextKyoku(tenpai[S.oya],true));
+ return;
+}
 if(n>0&&n<4){
  const perT=[0,3000,1500,1000][n],perN=-3000/(4-n);
  tenpai.forEach((t,i)=>{S.scores[i]+=t?perT:perN;});
@@ -1052,6 +1067,10 @@ ok('チー 1-2+3(辺張): 3のみ禁止',ks('chi','m3',['m1','m2'])==='m3');
 ok('チー 8-9+7: 7のみ禁止',ks('chi','m7',['m8','m9'])==='m7');
 ok('他に捨てる牌なし→鳴けない',!callLeavesDiscard(['m5','m5','m5'],['m5','m5'],kuikaeSet('pon','m5')));
 ok('他に捨てる牌あり→鳴ける',callLeavesDiscard(['m5','m5','p1'],['m5','m5'],kuikaeSet('pon','m5')));}
+{S.called=[false,false,false,false];S.rivers=[['m1','z1','p9'],['m1','m2'],['z5'],['s9']];
+ok('流し満貫(全て么九牌)',nagashiPlayers().join()==='0,2,3');
+S.called[2]=true;ok('1枚でも鳴かれたら不成立',nagashiPlayers().join()==='0,3');
+S.rivers=[[],[],[],[]];ok('捨牌なしは不成立',nagashiPlayers().length===0);S.called=[false,false,false,false];S.rivers=[[],[],[],[]];}
 ok('副露和了形',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','s9','z1','z1'],1)===-1);
 ok('赤処理',countsOf(['m0','m5','m5','m5'])[4]===4);
 ok('チー不可(対面から)',chiOptionsFor(['m1','m2'],'m3',2,0).length===0);
