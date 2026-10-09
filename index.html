@@ -203,6 +203,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・リーチは門前テンパイ・残り4枚以上・1000点以上で可能。一発・裏ドラ・赤ドラ(5萬/5筒/5索に各1枚)・カンドラあり<br>
 ・フリテン(同順見逃し+同巡内)はロン不可。テンパイ時は待ち表示が出ます<br>
 ・ロンは<span class="kbd">ダブロンあり</span>(同時に和了できる全員が和了。3人は三家和で流局)と<span class="kbd">頭ハネ</span>(放銃者に最も近い人だけ和了)を中央で選べます。本場・供託は先頭の和了者が受け取ります<br>
+・<span class="kbd">九種九牌</span>(配牌直後の自分のツモ番で、么九牌が9種類以上ならボタンで流局を宣言)と<span class="kbd">四風連打</span>(最初の4打が全員同じ風牌で自動流局)に対応。どちらも親は連荘します<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -668,10 +669,17 @@ render();beep(660,0.05);
 document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';
 refreshPlayerButtons();
 }
+function yaochuKinds(hand){const k=new Set();hand.forEach(t=>{if(isYao(t))k.add(baseOf(t));});return k;}
+function canKyushu(p){return !S.over&&!S.riichi[p]&&S.hands[p].length===14&&S.rivers[p].length===0&&S.melds.every(m=>m.length===0)&&yaochuKinds(S.hands[p]).size>=9;}
+function kyushuIdx(){const seen=new Set(),res=[];S.hands[0].forEach((t,i)=>{if(isYao(t)&&!seen.has(baseOf(t))){seen.add(baseOf(t));res.push(i);}});return res;}
+function aiWantsKyushu(p){const L=LV();if(L===0)return false;if(L===1)return Math.random()<0.5;return yaochuKinds(S.hands[p]).size<=10;} // 強い: 11種以上は国士を狙って続行
+function isSuufuurenda(){return S.rivers.every(r=>r.length===1)&&S.melds.every(m=>m.length===0)&&/^z[1-4]$/.test(baseOf(S.rivers[0][0]))&&S.rivers.every(r=>baseOf(r[0])===baseOf(S.rivers[0][0]));}
+function abortDraw(title,msg){if(S.over)return;S.over=true;setControls([]);say('流局');log(`流局: ${title} (${msg})`);render();showResult(title,[],[],[[msg,'']],'流局(親は連荘・供託は持越し)',()=>nextKyoku(true,true));}
 function refreshPlayerButtons(){
 if(!S||S.over||S.turn!==0)return;
 const btns=[];
 if(isAgari(S.hands[0])){const info=scoreInfo(0,S.hands[0],S.drawn,true);if(info.han>0)btns.push({label:`ツモ ${info.han}翻${info.fu}符`,cls:'green',onClick:()=>doTsumo(0)});}
+if(canKyushu(0))btns.push({label:'九種九牌(流局)',cls:'dark',hl:kyushuIdx(),onClick:()=>{setCand([],[]);abortDraw('九種九牌 流局','あなたが九種九牌を宣言');}});
 const kc=kanTiles(0);
 if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[0])btns.push({label:`カン ${baseOf(kc[0])}`,cls:'blue',hl:handIdx([baseOf(kc[0]),baseOf(kc[0]),baseOf(kc[0]),baseOf(kc[0])],false),onClick:()=>{setCand([],[]);doAnkan(0,kc[0]);}});
 if(!S.riichi[0]&&isClosed(0)&&S.scores[0]>=1000&&S.wall.length>4&&canRiichi(0))btns.push({label:'リーチ',cls:'red',hl:riichiIdx(),onClick:enterRiichi});
@@ -759,6 +767,7 @@ function afterDiscard(from,tile){
 if(S.over)return;const myAct=actId;
 const order=ronWinners(from,tile);
 if(order.length>=3){sanchaho();return;}
+if(order.length===0&&isSuufuurenda()){abortDraw('四風連打 流局','四人が同じ風牌を捨てました');return;}
 const rule=RON_RULE();
 let playerRon=order.includes(0),aiWin=order.filter(p=>p!==0);
 if(rule==='atama'&&order.length>0){
@@ -842,6 +851,7 @@ const p=S.turn;
 let t;if(S.hands[p].length%3===2){t=S.hands[p][S.hands[p].length-1];}else{t=S.wall.pop();S.hands[p].push(t);}
 S.drawn=t;S.furitenTemp[p]=false;render();beep(660,0.04);
 if(isAgari(S.hands[p])){const info=scoreInfo(p,S.hands[p],S.drawn,true);if(info.han>0&&Math.random()<[0.8,0.92,1][LV()]){setTimeout(()=>doTsumo(p),450);return;}}
+if(canKyushu(p)&&aiWantsKyushu(p)){setTimeout(()=>abortDraw('九種九牌 流局',`${seatName(p)}が九種九牌を宣言`),450);return;}
 const kc=kanTiles(p);
 if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[p]&&Math.random()<[0.4,0.25,0.1][LV()]){setTimeout(()=>doAnkan(p,kc[0]),450);return;}
 const wantRiichi=!S.riichi[p]&&isClosed(p)&&S.scores[p]>=1000&&S.wall.length>4&&Math.random()<[0.3,0.45,0.85][LV()]&&canRiichi(p);
@@ -1003,6 +1013,13 @@ ok('非和了',!isAgari(['m1','m2','m4','m5','m6','m7','p2','p3','p4','s6','s7',
 // シャンテン
 ok('聴牌0',shantenAll(['m1','m1','m2','m3','m4','m5','m6','m7','p2','p3','p4','s1','s2'])===0);
 ok('副露聴牌',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','z1','z1'],1)===0);
+S.hands[0]=['m1','m9','p1','p9','s1','s9','z1','z2','z3','m5','p5','s5','s6','s7'];S.rivers=[[],[],[],[]];S.melds=[[],[],[],[]];S.riichi=[false,false,false,false];S.over=false;
+ok('九種九牌',canKyushu(0));
+S.melds[2]=[{type:'pon',tiles:['z1','z1','z1']}];ok('鳴きがあれば九種九牌不可',!canKyushu(0));S.melds[2]=[];
+S.hands[0][0]='m2';ok('八種は九種九牌不可',!canKyushu(0));
+S.rivers=[['z1'],['z1'],['z1'],['z1']];ok('四風連打',isSuufuurenda());
+S.rivers[3]=['z2'];ok('別の風牌は四風連打でない',!isSuufuurenda());
+S.rivers=[['z1'],['z1'],['z1'],['z1']];S.melds[1]=[{type:'pon',tiles:['z5','z5','z5']}];ok('鳴き後は四風連打でない',!isSuufuurenda());S.melds[1]=[];S.rivers=[[],[],[],[]];
 ok('副露和了形',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','s9','z1','z1'],1)===-1);
 ok('赤処理',countsOf(['m0','m5','m5','m5'])[4]===4);
 ok('チー不可(対面から)',chiOptionsFor(['m1','m2'],'m3',2,0).length===0);
