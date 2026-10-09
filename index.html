@@ -70,10 +70,70 @@ button.blue{background:#1e88e5;box-shadow:0 3px 0 #0d47a1}button.green{backgroun
 #diceFaces{text-align:center;margin:14px 0;min-height:70px}#diceFaces.roll .die{animation:shake .12s infinite}
 @keyframes shake{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg) translateY(-4px)}100%{transform:rotate(-8deg)}}
 #diceText{text-align:center;font-weight:bold;min-height:24px}
-@media(max-width:720px){#table{grid-template-columns:1fr 1.2fr 1fr;grid-template-rows:130px 140px 130px}.tile{width:33px;height:48px;font-size:16px}header h1{font-size:15px}}
+#rotateHint{display:none}
+.seat .backs{display:flex;gap:1px;flex-wrap:wrap;margin-top:2px}.seat .cnt{display:none}
+.tile,button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.tile.sel{transform:translateY(-10px);outline:3px solid #ffeb3b;outline-offset:1px}
+@media(max-width:720px){
+body{padding:6px}
+header h1{font-size:15px}header .sub{font-size:11px}
+#board{padding:6px;border-width:4px}
+#topbar{padding:6px 8px;font-size:12px;gap:6px}
+.pill{padding:3px 8px;gap:4px}
+#table{grid-template-columns:1fr 1fr;grid-template-rows:auto;grid-template-areas:"center center" "top top" "left right" "bottom bottom";gap:6px;margin:8px 0}
+.seat{min-height:0;padding:5px}
+.seat .backs{display:none}.seat .cnt{display:inline;font-weight:normal;opacity:.8;margin-right:6px}
+.seat .river{min-height:0;margin-top:3px}
+#seat2 .river,#seat0 .river{grid-template-columns:repeat(12,1fr)}
+#centerBox{min-height:0;padding:6px;gap:3px}
+#centerBox .big{font-size:17px}
+.tile{width:36px;height:52px}
+#hand{gap:4px;min-height:56px}
+#handWrap{padding:6px}
+button{padding:10px 14px;font-size:14px}
+#controls{margin:8px 0;gap:6px}
+#log{height:84px}
+.card{padding:14px}
+#rotateHint{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-size:12px;background:rgba(255,202,40,.18);border:1px solid rgba(255,202,40,.5);border-radius:8px;padding:5px 8px;margin-bottom:6px}
+#rotateHint button{padding:2px 8px;font-size:12px;box-shadow:none}
+}
+@media (orientation:landscape) and (max-height:520px){
+#rotateHint{display:none}
+body{padding:4px}
+header{margin-bottom:4px}header .sub{display:none}header h1{font-size:14px}
+header button{padding:5px 9px!important;font-size:12px!important}
+#board{display:grid;grid-template-columns:repeat(3,1fr) 210px;grid-template-areas:"left top right s1" "bottom bottom bottom s2" "hand hand hand s3";gap:5px;padding:5px;max-width:none;border-width:4px}
+#table{display:contents}
+#seat3{grid-area:left}#seat2{grid-area:top}#seat1{grid-area:right}#seat0{grid-area:bottom}
+#topbar{grid-area:s1;flex-direction:column;align-items:stretch;padding:5px 7px;gap:4px;font-size:11px}
+#scores{gap:4px}.pill{padding:2px 7px;gap:3px}.pill .wind{width:17px;height:17px;font-size:10px}
+#centerBox{grid-area:s2;min-height:0;padding:4px;gap:2px 8px;font-size:12px;flex-direction:row;flex-wrap:wrap}
+#centerBox>#roundBig,#centerBox>#honbaInfo,#centerBox>#turnInfo{width:100%}
+#centerBox .big{font-size:14px}
+#wallbar,#wallInfo{display:none}
+#centerBox button{padding:5px 12px;font-size:12px}
+#centerBox select{padding:2px 4px;font-size:12px}
+#handWrap{grid-area:hand;padding:5px}
+#handInfo{margin-bottom:3px}
+#hand{min-height:0;flex-wrap:nowrap;gap:2px}
+.tile{width:clamp(22px,calc((100vw - 260px)/14 - 5px),38px);height:auto;aspect-ratio:36/52}
+.tile.sm{width:17px;height:24px;aspect-ratio:auto;padding:1px 1px 2px;border-radius:3px}
+#handInfo button{padding:2px 8px!important;font-size:11px!important}
+#handInfo{margin-bottom:2px;font-size:11px}
+.seat{min-height:0;padding:4px}
+.seat .backs{display:none}.seat .cnt{display:inline;font-weight:normal;opacity:.8;margin-right:6px}
+.seat .river{grid-template-columns:repeat(6,1fr);min-height:0;margin-top:2px;gap:1px}
+#seat0 .river{grid-template-columns:repeat(24,1fr)}
+#seat2 .river{grid-template-columns:repeat(6,1fr)}
+#honbaInfo{display:none}
+#controls{grid-area:s3;margin:0;min-height:0;align-content:flex-start;gap:5px}
+#controls button{padding:8px 10px;font-size:13px}
+#log{display:none}
+}
 </style>
 </head>
 <body>
+<div id="rotateHint">📱 スマホは<b>横向き</b>にすると見やすく遊べます <button class="dark" id="hintClose">×</button></div>
 <header>
 <div><h1>🀄 ブラウザ麻雀 v2</h1><div class="sub">4人打ち / 単一ファイル / GitHub Pages対応</div></div>
 <div>
@@ -116,7 +176,7 @@ button.blue{background:#1e88e5;box-shadow:0 3px 0 #0d47a1}button.green{backgroun
 <div class="modal" id="diceModal"><div class="card"><h2>🎲 親決め</h2><p style="font-size:13px">サイコロを2個振り、出目の合計で親を決めます。(1=あなた、2=下家、3=対面、4=上家…と反時計回りに数える)</p><div id="diceFaces"></div><div id="diceText"></div><div class="row" style="justify-content:center"><button id="diceBtn" class="green">サイコロを振る</button></div></div></div>
 <div class="modal" id="helpModal"><div class="card"><h2>遊び方</h2>
 <p style="font-size:13px;line-height:1.7">あなたは画面下。座席は反時計回りで、右が下家・上が対面・左が上家です。親はサイコロで決まり、CPU3人と東1〜東4局を打ちます。25000点持ち。CPUの強さは対局開始前に選べます。<br>
-・ツモ牌は金枠。捨てたい牌をクリック / 右側の<span class="kbd">ツモ切り</span>でも可<br>
+・ツモ牌は右端に金枠で表示。捨てたい牌をクリック(スマホ・タッチ操作は<b>1回タップで選択、もう一度タップで打牌</b>) / 右側の<span class="kbd">ツモ切り</span>でも可<br>
 ・鳴き・ロン・ツモ・リーチ・カンは中央下のボタンで選択。チーは自分の上家(左側のプレイヤー)の捨牌からのみ可能です<br>
 ・リーチは門前テンパイ・残り4枚以上・1000点以上で可能。一発・裏ドラ・赤ドラ(5萬/5筒/5索に各1枚)・カンドラあり<br>
 ・フリテン(同順見逃し+同巡内)はロン不可。テンパイ時は待ち表示が出ます<br>
@@ -147,7 +207,7 @@ function manSVG(n,aka){
 }
 function honSVG(n){
  const H=['','東','南','西','北','白','發','中'];
- if(n===5)return `<svg viewBox="0 0 36 48"></svg>`;
+ if(n===5)return `<svg viewBox="0 0 36 48"><rect x="6.5" y="9" width="23" height="30" rx="2" fill="#fffdf6" stroke="#1a3a8f" stroke-width="1.6"/><rect x="9.3" y="11.8" width="17.4" height="24.4" rx="1.5" fill="none" stroke="#1a3a8f" stroke-width="1.1"/><text x="18" y="31.5" text-anchor="middle" font-size="19" font-weight="900" fill="#111" font-family=${SERIF}>白</text></svg>`;
  const col=n===6?'#1f7a33':n===7?'#c62828':'#111';
  return `<svg viewBox="0 0 36 48"><text x="18" y="37" text-anchor="middle" font-size="27" font-weight="900" fill="${col}" font-family=${SERIF}>${H[n]}</text></svg>`;
 }
@@ -524,7 +584,7 @@ S.hands=[[],[],[],[]];for(let i=0;i<13;i++)for(let p=0;p<4;p++)S.hands[(S.oya+p)
 S.hands[S.oya].push(S.wall.pop());
 S.rivers=[[],[],[],[]];S.melds=[[],[],[],[]];S.riichi=[false,false,false,false];S.ippatsu=[false,false,false,false];S.furitenTemp=[false,false,false,false];S.furitenPerm=[false,false,false,false];S.riichiIdx={};
 S.turn=S.oya;S.drawn=null;S.drawnIdx=-1;S.over=false;S.waiting=false;S.riichiWait=false;S.rinshan=false;
-S.hands.forEach((h,i)=>{if(i===0&&S.oya===0){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);});render();
+S.hands.forEach((h,i)=>{if(i===S.oya){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);});render();
 log(`--- 東${S.round+1}局 ${S.honba}本場 ドラ:${nextIndicator(S.doraInd[0])} ---`);
 if(S.turn!==0)setTimeout(()=>{if(myAct===actId)aiDraw();},700);else setTimeout(()=>{if(myAct===actId)playerDraw(false);},300);}
 function sortHand(h){h.sort((a,b)=>T2I[a]-T2I[b]||(isAka(a)?1:0)-(isAka(b)?1:0));}
@@ -548,17 +608,22 @@ const riv=S.rivers[p].map((t,i)=>{let c='sm';if(S.riichi[p]&&i===S.riichiIdx?.[p
 const meld=S.melds[p].map(m=>`<span style="display:inline-flex;gap:1px;background:rgba(255,255,255,.85);border-radius:4px;padding:2px">${m.tiles.map(t=>tileHTML(t,'sm')).join('')}</span>`).join('');
 const back=S.hands[p].map(_=>`<div class="tile sm ura">裏</div>`).join('');
 el.className='seat'+(p===0?' me':'');
-el.innerHTML=`<div class="nm"><span>${seatName(p)} ${p===S.oya?'[親]':''} ${S.riichi[p]?'★R':''}</span><span>${S.scores[p]}</span></div><div style="display:flex;gap:1px;flex-wrap:wrap;margin-top:2px">${p===0?'':back}</div><div class="river">${riv}</div><div class="melds">${meld}</div>`;}
+el.innerHTML=`<div class="nm"><span>${seatName(p)} ${p===S.oya?'[親]':''} ${S.riichi[p]?'★R':''}</span><span>${p===0?'':'<span class="cnt">手牌'+S.hands[p].length+'枚</span>'}${S.scores[p]}</span></div><div class="backs">${p===0?'':back}</div><div class="river">${riv}</div><div class="melds">${meld}</div>`;}
 // 手牌
 const h=document.getElementById('hand');h.innerHTML='';
-S.hands[0].forEach((t,i)=>{const w=document.createElement('span');w.innerHTML=tileHTML(t,i===S.drawnIdx?'draw':'');if(i===S.drawnIdx&&i>0)w.style.marginLeft='16px';w.firstChild.onclick=()=>onPlayerDiscard(i);h.appendChild(w);});
+S.hands[0].forEach((t,i)=>{const w=document.createElement('span');w.innerHTML=tileHTML(t,i===S.drawnIdx?'draw':'');if(i===S.drawnIdx&&i>0)w.style.marginLeft='16px';w.firstChild.onclick=e=>onTileTap(i,e);h.appendChild(w);});
 paintCand();
 // シャンテン・待ち
 if(!S.over){const sh=shantenAll(S.hands[0],S.melds[0].length);document.getElementById('shantenInfo').textContent=`シャンテン: ${sh>=0?sh+' (聴牌まで'+(sh+1)+'枚交換目安)':'和了形!'}`;
 const h13=S.hands[0].length%3===1?S.hands[0]:null;let waits=h13&&shantenAll(h13,S.melds[0].length)===0?waitsOf(h13):[];
 document.getElementById('tenpaiInfo').textContent=waits.length?`待ち: ${waits.map(baseOf).join(' ')}`:(S.hands[0].length%3===2&&isAgari(S.hands[0])?'← 和了形 ツモ可':'');}
 }
-function paintCand(){const ch=document.getElementById('hand').children;for(let i=0;i<ch.length;i++){const t=ch[i].firstChild;if(!t||!t.classList)continue;t.classList.toggle('cand',!!(S&&S.candAll&&S.candAll.has(i)));t.classList.toggle('hot',!!(S&&S.candHot&&S.candHot.has(i)));}}
+const IS_TOUCH=('ontouchstart' in window)||(typeof navigator!=='undefined'&&navigator.maxTouchPoints>0);
+function onTileTap(i,e){
+const touch=(e&&e.pointerType)?e.pointerType==='touch':IS_TOUCH;
+if(touch&&S&&!S.over&&!S.waiting&&S.turn===0&&!S.riichi[0]){const t=S.hands[0][i];if(!S.sel||S.sel.i!==i||S.sel.t!==t){S.sel={i,t};paintCand();return;}}
+onPlayerDiscard(i);}
+function paintCand(){const ch=document.getElementById('hand').children;if(S&&S.sel&&S.hands[0][S.sel.i]!==S.sel.t)S.sel=null;for(let i=0;i<ch.length;i++){const t=ch[i].firstChild;if(!t||!t.classList)continue;t.classList.toggle('sel',!!(S&&S.sel&&S.sel.i===i));t.classList.toggle('cand',!!(S&&S.candAll&&S.candAll.has(i)));t.classList.toggle('hot',!!(S&&S.candHot&&S.candHot.has(i)));}}
 function setCand(all,hot){if(!S)return;S.candAll=new Set(all||[]);S.candHot=new Set(hot||[]);paintCand();}
 function setCandHot(hot){if(!S)return;S.candHot=new Set(hot||[]);paintCand();}
 function handIdx(bases,fromEnd){const h=S.hands[0];const used=new Set(),res=[];bases.forEach(b=>{let f=-1;if(fromEnd){for(let i=h.length-1;i>=0;i--)if(!used.has(i)&&baseOf(h[i])===b){f=i;break;}}else{for(let i=0;i<h.length;i++)if(!used.has(i)&&baseOf(h[i])===b){f=i;break;}}if(f>=0){used.add(f);res.push(f);}});return res;}
@@ -572,7 +637,7 @@ if(S.over||S.turn!==0)return;
 if(S.wall.length===0){ryukyoku();return;}
 let t;if(S.hands[0].length===14&&!isRinshan){t=S.hands[0][S.hands[0].length-1];}
 else{t=S.wall.pop();S.hands[0].push(t);if(isRinshan)S.rinshan=true;}
-S.drawn=t;S.furitenTemp[0]=false;{const h0=S.hands[0];const d0=h0.pop();sortHand(h0);h0.push(d0);S.drawnIdx=h0.length-1;}
+S.sel=null;S.drawn=t;S.furitenTemp[0]=false;{const h0=S.hands[0];const d0=h0.pop();sortHand(h0);h0.push(d0);S.drawnIdx=h0.length-1;}
 render();beep(660,0.05);
 document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';
 refreshPlayerButtons();
@@ -606,7 +671,7 @@ if(shantenAll(tmp,S.melds[0].length)!==0){
  setControls([{label:'リーチ取消',cls:'dark',onClick:()=>{S.riichiWait=false;refreshPlayerButtons();document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';}}]);
  return;
 }
-S.riichiWait=false;setCand([],[]);
+S.riichiWait=false;setCand([],[]);S.sel=null;
 const t=h[idx];h.splice(idx,1);sortHand(h);
 S.scores[0]-=1000;S.kyotaku++;S.riichi[0]=true;S.ippatsu[0]=true;S.riichiIdx=S.riichiIdx||{};S.riichiIdx[0]=S.rivers[0].length;
 S.rivers[0].push(t);S.drawn=null;S.drawnIdx=-1;say('リーチ');log(`あなた: リーチ! → ${baseOf(t)}`);beep(880,0.12);render();afterDiscard(0,t);}
@@ -626,7 +691,7 @@ else setTimeout(()=>aiDiscard(p),500);}
 // ---- 捨牌共通 ----
 // isRiichiDecl: リーチ宣言牌の打牌(一発成立)。それ以外でリーチ者が打牌したら一発消滅
 function doDiscard(p,idx,isRiichiCut,isRiichiDecl=false){
-if(p===0)setCand([],[]);const t=S.hands[p][idx];S.hands[p].splice(idx,1);if(p===0)sortHand(S.hands[0]);S.rivers[p].push(t);S.drawn=null;S.drawnIdx=-1;S.rinshan=false;
+if(p===0){setCand([],[]);S.sel=null;}const t=S.hands[p][idx];S.hands[p].splice(idx,1);if(p===0)sortHand(S.hands[0]);S.rivers[p].push(t);S.drawn=null;S.drawnIdx=-1;S.rinshan=false;
 if(isRiichiDecl){S.ippatsu[p]=true;}
 else if(S.riichi[p]){S.ippatsu[p]=false;}
 log(`${seatName(p)}: 切 ${baseOf(t)}${isAka(t)?'(赤)':''}`);render({from:p});beep(300,0.04);
@@ -713,7 +778,7 @@ else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doChi(p,from,tile,opt){
 S.rivers[from].pop();const h=S.hands[p];
 const taken=opt.map(b=>{const i=h.map(baseOf).indexOf(b);return i>=0?h.splice(i,1)[0]:b;});
-S.melds[p].push({type:'chi',tiles:[...taken,tile],closed:false});
+S.melds[p].push({type:'chi',tiles:[...taken,tile].sort((a,b)=>T2I[a]-T2I[b]),closed:false});
 say('チー');log(`${seatName(p)}: チー ${opt.join(' ')}+${baseOf(tile)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='チー: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
@@ -740,7 +805,8 @@ function aiDraw(){
 if(!S||S.over||S.turn===0||S.waiting)return;
 if(S.wall.length===0){ryukyoku();return;}
 const p=S.turn;
-const t=S.wall.pop();S.hands[p].push(t);S.drawn=t;S.furitenTemp[p]=false;render();beep(660,0.04);
+let t;if(S.hands[p].length%3===2){t=S.hands[p][S.hands[p].length-1];}else{t=S.wall.pop();S.hands[p].push(t);}
+S.drawn=t;S.furitenTemp[p]=false;render();beep(660,0.04);
 if(isAgari(S.hands[p])){const info=scoreInfo(p,S.hands[p],S.drawn,true);if(info.han>0&&Math.random()<[0.8,0.92,1][LV()]){setTimeout(()=>doTsumo(p),450);return;}}
 const kc=kanTiles(p);
 if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&!S.riichi[p]&&Math.random()<[0.4,0.25,0.1][LV()]){setTimeout(()=>doAnkan(p,kc[0]),450);return;}
@@ -890,7 +956,8 @@ ok('平和形',isAgari(['m2','m3','m4','m5','m6','m7','p2','p3','p4','s6','s7','
 ok('非和了',!isAgari(['m1','m2','m4','m5','m6','m7','p2','p3','p4','s6','s7','s8','z1','z2']));
 // シャンテン
 ok('聴牌0',shantenAll(['m1','m1','m2','m3','m4','m5','m6','m7','p2','p3','p4','s1','s2'])===0);
-ok('副露聴牌',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','s9','z1','z1'],1)===0);
+ok('副露聴牌',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','z1','z1'],1)===0);
+ok('副露和了形',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','s9','z1','z1'],1)===-1);
 ok('赤処理',countsOf(['m0','m5','m5','m5'])[4]===4);
 ok('チー不可(対面から)',chiOptionsFor(['m1','m2'],'m3',2,0).length===0);
 ok('チー可(上家から)',chiOptionsFor(['m1','m2'],'m3',3,0).length>0);
@@ -904,7 +971,7 @@ ok('チー可(上家から)',chiOptionsFor(['m1','m2'],'m3',3,0).length>0);
 // ドラのみは役なし
 {
  const h=['m2','m3','m4','m5','m6','m7','p2','p3','p4','s1','s2','s3','z1','z1'];
- const y=yakus(h,[],{riichi:false,ippatsu:false,tsumo:true,rinshan:false,haitei:false,houtei:false,seat:1,bakaze:'z1',dora:2,aka:0,ura:0,winTile:'z1'});
+ const y=yakus(h,[],{riichi:false,ippatsu:false,tsumo:false,rinshan:false,haitei:false,houtei:false,seat:1,bakaze:'z1',dora:2,aka:0,ura:0,winTile:'z1'});
  ok('ドラのみ役なし',y.han===0);
 }
 // 暗槓入りでも和了判定(手牌のみ分解)
@@ -938,6 +1005,7 @@ document.getElementById('nextBtn').onclick=()=>document.getElementById('resultMo
 document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.add('open');
 document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').classList.remove('open');
 function syncAudioBtns(){document.getElementById('soundBtn').textContent='効果音:'+(soundOn?'ON':'OFF');document.getElementById('voiceBtn').textContent='声:'+(voiceOn?'ON':'OFF');}
+(function(){const h=document.getElementById('rotateHint');if(lsGet('mj_hint','0')==='1'){h.remove();return;}document.getElementById('hintClose').onclick=()=>{lsSet('mj_hint','1');h.remove();};})();
 document.getElementById('soundBtn').onclick=()=>{soundOn=!soundOn;lsSet('mj_sound',soundOn?'1':'0');syncAudioBtns();};
 document.getElementById('voiceBtn').onclick=()=>{voiceOn=!voiceOn;lsSet('mj_voice',voiceOn?'1':'0');syncAudioBtns();try{if(!voiceOn&&window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}if(voiceOn)say('声オン');};
 syncAudioBtns();
