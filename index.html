@@ -204,6 +204,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・フリテン(同順見逃し+同巡内)はロン不可。テンパイ時は待ち表示が出ます<br>
 ・ロンは<span class="kbd">ダブロンあり</span>(同時に和了できる全員が和了。3人は三家和で流局)と<span class="kbd">頭ハネ</span>(放銃者に最も近い人だけ和了)を中央で選べます。本場・供託は先頭の和了者が受け取ります<br>
 ・<span class="kbd">九種九牌</span>(配牌直後の自分のツモ番で、么九牌が9種類以上ならボタンで流局を宣言)と<span class="kbd">四風連打</span>(最初の4打が全員同じ風牌で自動流局)に対応。どちらも親は連荘します<br>
+・<span class="kbd">四家立直</span>(4人全員がリーチ)と<span class="kbd">四槓散了</span>(4回目のカンが別々の人)は、ロンが出なければ流局。親は連荘、供託は持越しです<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -674,6 +675,8 @@ function canKyushu(p){return !S.over&&!S.riichi[p]&&S.hands[p].length===14&&S.ri
 function kyushuIdx(){const seen=new Set(),res=[];S.hands[0].forEach((t,i)=>{if(isYao(t)&&!seen.has(baseOf(t))){seen.add(baseOf(t));res.push(i);}});return res;}
 function aiWantsKyushu(p){const L=LV();if(L===0)return false;if(L===1)return Math.random()<0.5;return yaochuKinds(S.hands[p]).size<=10;} // 強い: 11種以上は国士を狙って続行
 function isSuufuurenda(){return S.rivers.every(r=>r.length===1)&&S.melds.every(m=>m.length===0)&&/^z[1-4]$/.test(baseOf(S.rivers[0][0]))&&S.rivers.every(r=>baseOf(r[0])===baseOf(S.rivers[0][0]));}
+function isSuuchaRiichi(){return S.riichi.every(r=>r);}
+function isSuukanSanra(){return S.kanCount===4&&S.melds.every(m=>m.filter(x=>x.tiles.length===4).length<4);} // 4槓を1人が行った場合は四槓子の可能性があるので流局にしない
 function abortDraw(title,msg){if(S.over)return;S.over=true;setControls([]);say('流局');log(`流局: ${title} (${msg})`);render();showResult(title,[],[],[[msg,'']],'流局(親は連荘・供託は持越し)',()=>nextKyoku(true,true));}
 function refreshPlayerButtons(){
 if(!S||S.over||S.turn!==0)return;
@@ -768,6 +771,8 @@ if(S.over)return;const myAct=actId;
 const order=ronWinners(from,tile);
 if(order.length>=3){sanchaho();return;}
 if(order.length===0&&isSuufuurenda()){abortDraw('四風連打 流局','四人が同じ風牌を捨てました');return;}
+if(order.length===0&&isSuuchaRiichi()){abortDraw('四家立直 流局','四人全員がリーチしました');return;}
+if(order.length===0&&isSuukanSanra()){abortDraw('四槓散了 流局','4回目のカンが別々の人で成立しました');return;}
 const rule=RON_RULE();
 let playerRon=order.includes(0),aiWin=order.filter(p=>p!==0);
 if(rule==='atama'&&order.length>0){
@@ -1020,6 +1025,11 @@ S.hands[0][0]='m2';ok('八種は九種九牌不可',!canKyushu(0));
 S.rivers=[['z1'],['z1'],['z1'],['z1']];ok('四風連打',isSuufuurenda());
 S.rivers[3]=['z2'];ok('別の風牌は四風連打でない',!isSuufuurenda());
 S.rivers=[['z1'],['z1'],['z1'],['z1']];S.melds[1]=[{type:'pon',tiles:['z5','z5','z5']}];ok('鳴き後は四風連打でない',!isSuufuurenda());S.melds[1]=[];S.rivers=[[],[],[],[]];
+{const K=()=>({type:'kan',tiles:['z1','z1','z1','z1']});
+S.riichi=[true,true,true,true];ok('四家立直',isSuuchaRiichi());S.riichi=[true,true,true,false];ok('3人リーチは流局でない',!isSuuchaRiichi());S.riichi=[false,false,false,false];
+S.kanCount=4;S.melds=[[K()],[K()],[K(),K()],[]];ok('四槓散了(複数人)',isSuukanSanra());
+S.melds=[[K(),K(),K(),K()],[],[],[]];ok('4槓を1人が行えば散了でない',!isSuukanSanra());
+S.kanCount=3;S.melds=[[K()],[K()],[K()],[]];ok('3槓では散了でない',!isSuukanSanra());S.kanCount=0;S.melds=[[],[],[],[]];}
 ok('副露和了形',shantenAll(['m1','m2','m3','p5','p5','p5','s7','s8','s9','z1','z1'],1)===-1);
 ok('赤処理',countsOf(['m0','m5','m5','m5'])[4]===4);
 ok('チー不可(対面から)',chiOptionsFor(['m1','m2'],'m3',2,0).length===0);
