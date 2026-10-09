@@ -389,7 +389,8 @@ document.querySelectorAll('#ruleList select').forEach(e=>{e.disabled=locked&&e.i
 document.getElementById('ruleNote').textContent=locked?'対局中のため、ルールは変更できません(CPUの強さとヒントは変更できます)。':'';
 document.getElementById('ruleModal').classList.add('open');}
 const windName=p=>['東','南','西','北'][(p-S.oya+4)%4];
-function LV(){const e=document.getElementById('cpuLevel');const v=e?+e.value:1;return v>=0&&v<=2?v:1;}
+function LV(p){if(p!==undefined&&typeof S!=='undefined'&&S&&S.levels&&S.levels[p]!==undefined)return S.levels[p]; // 席ごとの強さ(測定用)
+const e=document.getElementById('cpuLevel');const v=e?+e.value:1;return v>=0&&v<=2?v:1;}
 function beep(f=440,d=0.07){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.value=0.08;o.start();o.stop(AC.currentTime+d);}catch(e){}}
 let S=null;let actId=0;
 function log(m){const e=document.getElementById('log');const d=document.createElement('div');d.textContent=m;e.appendChild(d);e.scrollTop=1e9;}
@@ -746,7 +747,7 @@ refreshPlayerButtons();autoHint();
 function yaochuKinds(hand){const k=new Set();hand.forEach(t=>{if(isYao(t))k.add(baseOf(t));});return k;}
 function canKyushu(p){return R().abortive!=='off'&&!S.over&&!S.riichi[p]&&S.hands[p].length===14&&S.rivers[p].length===0&&S.melds.every(m=>m.length===0)&&yaochuKinds(S.hands[p]).size>=9;}
 function kyushuIdx(){const seen=new Set(),res=[];S.hands[0].forEach((t,i)=>{if(isYao(t)&&!seen.has(baseOf(t))){seen.add(baseOf(t));res.push(i);}});return res;}
-function aiWantsKyushu(p){const L=LV();if(L===0)return false;if(L===1)return Math.random()<0.5;return yaochuKinds(S.hands[p]).size<=10;} // 強い: 11種以上は国士を狙って続行
+function aiWantsKyushu(p){const L=LV(p);if(L===0)return false;if(L===1)return Math.random()<0.5;return yaochuKinds(S.hands[p]).size<=10;} // 強い: 11種以上は国士を狙って続行
 function isSuufuurenda(){return R().abortive!=='off'&&S.rivers.every(r=>r.length===1)&&S.melds.every(m=>m.length===0)&&/^z[1-4]$/.test(baseOf(S.rivers[0][0]))&&S.rivers.every(r=>baseOf(r[0])===baseOf(S.rivers[0][0]));}
 function isSuuchaRiichi(){return R().abortive!=='off'&&S.riichi.every(r=>r);}
 function isSuukanSanra(){return R().abortive!=='off'&&S.kanCount===4&&S.melds.every(m=>m.filter(x=>x.tiles.length===4).length<4);} // 4槓を1人が行った場合は四槓子の可能性があるので流局にしない
@@ -838,12 +839,11 @@ const riverBases=S.rivers[p].map(baseOf);
 if(waits.some(w=>riverBases.includes(w)))return true;
 return false;}
 function aiCallAfterPass(from,tile){
- if(LV()===2){for(let k=1;k<=3;k++){const p=(from+k)%4;if(p===0)continue;const r=aiEvCall(p,from,tile);
-  if(r){S.ippatsu=[false,false,false,false];if(r.kind==='pon')doPon(p,from,tile);else doChi(p,from,tile,r.opt);return true;}}return false;}
- // プレイヤーがパスした後、AIのポン・チーを判定(ロンなしの場合)
+ // プレイヤーがパスした後(または他家の打牌後)、AIのポン・チーを判定(ロンなしの場合)
  for(let k=1;k<=3;k++){const p=(from+k)%4;if(p===0)continue;
+  if(LV(p)===2){const r=aiEvCall(p,from,tile);if(r){S.ippatsu=[false,false,false,false];if(r.kind==='pon')doPon(p,from,tile);else doChi(p,from,tile,r.opt);return true;}continue;}
   if(canPonK(p,tile)&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<aiPonRate(p,tile)){S.ippatsu=[false,false,false,false];doPon(p,from,tile);return true;}
-  if(k===1){const o=chiOptsK(S.hands[p],tile,from,p);if(o.length&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<[0.15,0.35,0.45][LV()]){S.ippatsu=[false,false,false,false];doChi(p,from,tile,o[0]);return true;}}}
+  if(k===1){const o=chiOptsK(S.hands[p],tile,from,p);if(o.length&&S.hands[p].length%3===1&&!S.riichi[p]&&shantenAll(S.hands[p],S.melds[p].length)<=1&&Math.random()<[0.15,0.35,0.45][LV(p)]){S.ippatsu=[false,false,false,false];doChi(p,from,tile,o[0]);return true;}}}
  return false;}
 function ronWinners(from,tile){ // 放銃者に近い順(下家→対面→上家)
 const res=[];for(let k=1;k<=3;k++){const p=(from+k)%4;const test=S.hands[p].concat([tile]);
@@ -970,7 +970,7 @@ const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHa
 say('カン');S.turn=p;S.waiting=false;render();
 afterRinshan(p);}
 // ---- AI ----
-function aiPonRate(p,tile){return Math.min(0.95,aiPonRateBase(p,tile)*[0.5,1,1.3][LV()]);}
+function aiPonRate(p,tile){return Math.min(0.95,aiPonRateBase(p,tile)*[0.5,1,1.3][LV(p)]);}
 function aiPonRateBase(p,tile){
 const b=baseOf(tile);
 // 役牌は積極的
@@ -984,13 +984,13 @@ if(S.wall.length===0){ryukyoku();return;}
 const p=S.turn;
 let t;if(S.hands[p].length%3===2){t=S.hands[p][S.hands[p].length-1];}else{t=S.wall.pop();S.hands[p].push(t);}
 S.drawn=t;S.furitenTemp[p]=false;render();beep(660,0.04);
-if(isAgari(S.hands[p])){const info=scoreInfo(p,S.hands[p],S.drawn,true);if(info.han>0&&Math.random()<[0.8,0.92,1][LV()]){setTimeout(()=>doTsumo(p),450);return;}}
+if(isAgari(S.hands[p])){const info=scoreInfo(p,S.hands[p],S.drawn,true);if(info.han>0&&Math.random()<[0.8,0.92,1][LV(p)]){setTimeout(()=>doTsumo(p),450);return;}}
 if(canKyushu(p)&&aiWantsKyushu(p)){setTimeout(()=>abortDraw('九種九牌 流局',`${seatName(p)}が九種九牌を宣言`),450);return;}
 const kc=kanTiles(p).filter(t=>!S.riichi[p]||riichiAnkanOK(p,baseOf(t)));
-if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&Math.random()<[0.4,0.25,0.1][LV()]){setTimeout(()=>doAnkan(p,kc[0]),450);return;}
+if(kc.length&&S.rinTiles.length>0&&S.kanCount<4&&Math.random()<[0.4,0.25,0.1][LV(p)]){setTimeout(()=>doAnkan(p,kc[0]),450);return;}
 const kk=kakanList(p);
-if(kk.length&&Math.random()<[0.5,0.3,0.15][LV()]){setTimeout(()=>doKakan(p,kk[0].mi),450);return;}
-const wantRiichi=!S.riichi[p]&&isClosed(p)&&S.scores[p]>=1000&&S.wall.length>4&&canRiichi(p)&&(LV()===2?aiRiichiWorth(p):Math.random()<[0.3,0.45,0.85][LV()]);
+if(kk.length&&Math.random()<[0.5,0.3,0.15][LV(p)]){setTimeout(()=>doKakan(p,kk[0].mi),450);return;}
+const wantRiichi=!S.riichi[p]&&isClosed(p)&&S.scores[p]>=1000&&S.wall.length>4&&canRiichi(p)&&(LV(p)===2?aiRiichiWorth(p):Math.random()<[0.3,0.45,0.85][LV(p)]);
 setTimeout(()=>aiDiscard(p,wantRiichi),520);}
 function aiRiichiDiscard(p,idx){
 const t=S.hands[p][idx];S.hands[p].splice(idx,1);
@@ -1008,7 +1008,7 @@ if(S.riichi[p]){
  const i=S.drawn!=null?h.indexOf(S.drawn):-1;doDiscard(p,i>=0?i:h.length-1,false);return;
 }
 if(riichiIntent&&isClosed(p)){
- if(LV()===2){const rc=rankDiscards(true,p);if(rc.length){aiRiichiDiscard(p,rc[0].i);return;}}
+ if(LV(p)===2){const rc=rankDiscards(true,p);if(rc.length){aiRiichiDiscard(p,rc[0].i);return;}}
  const opts=[];
  for(let i=0;i<h.length;i++){const tmp=h.slice();tmp.splice(i,1);if(shantenAll(tmp,S.melds[p].length)===0)opts.push(i);}
  if(opts.length){
@@ -1017,7 +1017,7 @@ if(riichiIntent&&isClosed(p)){
   aiRiichiDiscard(p,bi);return;
  }
 }
-const L=LV();
+const L=LV(p);
 if(L===2){const c2=rankDiscards(false,p);if(c2.length){doDiscard(p,c2[0].i,false);return;}}
 if(L===0&&Math.random()<0.2){const ok=h.map((t,i)=>i).filter(i=>!isKuikae(p,h[i]));if(ok.length){doDiscard(p,ok[(Math.random()*ok.length)|0],false);return;}}
 const m0=S.melds[p].length;
@@ -1257,12 +1257,10 @@ out.sort((a,b)=>b.ev-a.ev);return out;}
 function aiRiichiWorth(p){ // リーチするか(ダマにするか)
 const cand=rankDiscards(true,p);if(!cand.length)return false;
 const b=cand[0];const seen=seenCounts(p);const tmp=S.hands[p].slice();tmp.splice(b.i,1);
-const dama=waitValue(tmp,b.waits,seen,false,p);const thr=threatsOf(p);
-if(dama.han===0)return true;                       // 役がない→リーチしかない
-if(dama.han>=3||dama.pts>=5800)return false;        // ダマで十分な打点
-if(thr.some(x=>x.w===1)&&b.uke<5)return false;       // 他家リーチ+愚形→ダマ
-return b.uke>=3;}
-function aiEvCall(p,from,tile){ // ポン/チーした方がよいか(評価が12%以上上がるときだけ鳴く)
+const dama=waitValue(tmp,b.waits,seen,false,p);
+// リーチ: 役がなければ必須。ダマで十分な打点(3翻以上/5800点以上)ならダマ。それ以外は先手を取ってリーチ
+return dama.han===0||!(dama.han>=3||dama.pts>=5800);}
+function aiEvCall(p,from,tile){ // ポン/チーした方がよいか(速度重視: 鳴かない場合の85%以上の評価なら鳴く)
 const h=S.hands[p];if(h.length%3!==1||S.riichi[p])return null;
 const m0=S.melds[p].length;const seen=seenCounts(p);
 const unseen=Math.max(30,136-seen.reduce((a,b)=>a+b,0));const D=Math.max(1,Math.ceil(S.wall.length/4))*1.15;
@@ -1276,7 +1274,7 @@ if(canPonK(p,tile))tryCall([b,b],'pon');
 if(from===(p+3)%4)chiOptsK(h,tile,from,p).forEach(o=>tryCall(o,'chi',o));
 if(!best)return null;
 const thrBad=threatsOf(p).some(x=>x.w===1);
-if(best.sc>passEV*1.12&&best.s<=base.s&&best.val>1000&&!(thrBad&&best.s>=2))return best;
+if(best.sc>passEV*0.85&&best.s<=base.s&&best.val>1000&&!(thrBad&&best.s>=2))return best;
 return null;}
 const sName=s=>s<0?'和了形':s===0?'テンパイ':`${s}シャンテン`;
 const waitNames=ws=>{const a=ws.slice(0,7).map(t=>tName(TYPES[t]));return a.join(' ')+(ws.length>7?' …':'');};
@@ -1346,7 +1344,7 @@ if(top){
  notes.push(`${top.label}した場合(最善の打牌 ${tName(top.t)}): ${sName(top.s)} / 受け入れ ${top.uke}枚 / 見込み打点 約${Math.round(top.val/100)*100}点 / 和了率 約${Math.round(top.pWin*100)}%`);
  if(top.val<=1000)notes.push('鳴いても役(役牌・断幺九・染め手)が見込めず、和了できない可能性が高い形です。');
  const thrBad=thr.some(x=>x.w===1);
- if(top.sc>passEV*1.12&&top.s<=base.s&&ypAfter&&!(thrBad&&top.s>=2)){rec=top.key;recLabel=top.label;
+ if(top.sc>passEV*0.85&&top.s<=base.s&&ypAfter&&!(thrBad&&top.s>=2)){rec=top.key;recLabel=top.label;
   notes.push(`${top.s<base.s?'シャンテン数が進み':'受け入れが増え'}、打点も確保できるため${top.label}を推奨します。`);}
  else if(thrBad&&top.s>=1)notes.push('他家のリーチがあるため、手を崩さず(安全牌を残して)見送るのが堅い選択です。');
  else notes.push('見込める価値が鳴くコスト(門前の打点・リーチの権利を失う)に見合わないため、見送りを推奨します。');
