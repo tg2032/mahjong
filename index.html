@@ -229,6 +229,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・<span class="kbd">ルール設定</span>(ヘッダの「ルール」/中央のボタン): 対局の長さ・ダブロン/頭ハネ・人和(満貫扱い/役満)・オーラス止め・トビ終了・赤ドラ・喰い替え・流し満貫・途中流局を選べます(対局開始時に確定)<br>
 ・<span class="kbd">人和</span>: 子が自分の最初のツモ前に、誰も鳴いていない状態でロン和了した場合の役。<span class="kbd">オーラス止め</span>: 最終局で親がトップのまま和了(または聴牌)すると終了。<span class="kbd">トビ</span>: 誰かの持ち点が0未満で終了<br>
 ・<span class="kbd">💡ヒント</span>: 手牌の欄のボタン(ルール設定で自動表示も可)。打牌は牌効率・受け入れ枚数・打点(ドラ・役)・他家リーチへの放銃危険度(現物/スジ/字牌/壁)から押し引きまで評価して、おすすめの牌(水色の枠)と理由を表示します。鳴ける場面ではポン・チー・パスの推奨も出ます。リーチかダマかの助言付き<br>
+・<span class="kbd">延長戦</span>: 規定の局が終わっても30000点以上の人がいなければ、東風戦は<b>南入</b>、東南戦は<b>西入</b>で延長(最大4局)。延長中は30000点以上の人が出た時点で終了します。オーラス止めは親が30000点以上のときに働きます<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -357,6 +358,7 @@ const RULE_DEFS=[
 {k:'ron',l:'ロン',o:[['double','ダブロンあり'],['atama','頭ハネ(先着のみ)']],d:'double'},
 {k:'renhou',l:'人和',o:[['mangan','満貫扱い'],['yakuman','役満'],['off','なし']],d:'mangan'},
 {k:'allLast',l:'オーラスの親の連荘',o:[['agari','和了止め(トップ時)'],['tenpai','和了・聴牌止め(トップ時)'],['off','続行(止めない)']],d:'agari'},
+{k:'extend',l:'延長戦(30000点未満なら 南入/西入)',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'tobi',l:'トビ終了(持ち点0未満)',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'aka',l:'赤ドラ',o:[['on','あり(各1枚)'],['off','なし']],d:'on'},
 {k:'kuikae',l:'喰い替え禁止',o:[['on','あり'],['off','なし']],d:'on'},
@@ -642,7 +644,7 @@ function rollTwoDice(){return[1+((Math.random()*6)|0),1+((Math.random()*6)|0)];}
 function oyaFromDice(sum){return(sum-1)%4;}
 function newGame(oya){
 if(oya===undefined){const d=rollTwoDice();oya=oyaFromDice(d[0]+d[1]);}
-const rules=readRules();S={scores:[25000,25000,25000,25000],round:0,rounds:rules.len==='hanchan'?8:4,rules,honba:0,kyotaku:0,oya};log(`対局開始: ${S.rounds>4?'東南戦(半荘)':'東風戦'} / 親:${seatName(oya)} / CPU:${['弱い','普通','強い'][LV()]}`);startKyoku();}
+const rules=readRules();S={scores:[25000,25000,25000,25000],round:0,rounds:rules.len==='hanchan'?8:4,baseRounds:rules.len==='hanchan'?8:4,rules,honba:0,kyotaku:0,oya};log(`対局開始: ${S.rounds>4?'東南戦(半荘)':'東風戦'} / 親:${seatName(oya)} / CPU:${['弱い','普通','強い'][LV()]}`);startKyoku();}
 function openDiceModal(){
 const faces=document.getElementById('diceFaces'),txt=document.getElementById('diceText'),btn=document.getElementById('diceBtn');
 let phase='ready',oya=0,timer=null;
@@ -668,15 +670,16 @@ S.hands.forEach((h,i)=>{if(i===S.oya){const d=h.pop();sortHand(h);h.push(d);}els
 log(`--- ${roundName()} ${S.honba}本場 ドラ:${nextIndicator(S.doraInd[0])} ---`);
 if(S.turn!==0)setTimeout(()=>{if(myAct===actId)aiDraw();},700);else setTimeout(()=>{if(myAct===actId)playerDraw(false);},300);}
 function sortHand(h){h.sort((a,b)=>T2I[a]-T2I[b]||(isAka(a)?1:0)-(isAka(b)?1:0));}
-function bakazeOf(){return(S&&S.round>=4)?'z2':'z1';}
-const roundName=()=>`${S.round<4?'東':'南'}${(S.round%4)+1}局`;
+const roundWind=()=>Math.min(3,((S&&S.round)||0)>>2);
+function bakazeOf(){return 'z'+(roundWind()+1);}
+const roundName=()=>`${['東','南','西','北'][roundWind()]}${(S.round%4)+1}局`;
 function seatWind(p){return 'z'+(((p-S.oya+4)%4)+1);}
 function isClosed(p){return S.melds[p].every(m=>m.closed||m.type==='ankan');}
 // ---- 描画 ----
 function render(highlight=null){
 document.getElementById('roundInfo').textContent=`${roundName()} ${S.honba}本場 供託${S.kyotaku}`;
 document.getElementById('roundBig').textContent=roundName();
-document.getElementById('windInfo').textContent=`場風:${S.round<4?'東':'南'} / 自風:${windName(0)}家${S.oya===0?'(親)':''}`;
+document.getElementById('windInfo').textContent=`場風:${['東','南','西','北'][roundWind()]} / 自風:${windName(0)}家${S.oya===0?'(親)':''}`;
 document.getElementById('honbaInfo').textContent=`${S.honba}本場 供託${S.kyotaku} 親:${seatName(S.oya)}`;
 const total0=69;document.getElementById('wallfill').style.width=(100*S.wall.length/total0)+'%';
 document.getElementById('wallInfo').textContent=`残り ${S.wall.length}`;
@@ -1082,14 +1085,20 @@ actId++;
 const rl=R();
 // トビ終了
 if(rl.tobi!=='off'){const bust=[0,1,2,3].filter(i=>S.scores[i]<0);if(bust.length){endGame('トビ終了('+bust.map(seatName).join('・')+'が持ち点0未満)');return;}}
-// オーラスの親の和了止め/聴牌止め(親がトップのとき)
-if(oyaWin&&S.round===S.rounds-1&&rl.allLast!=='off'&&isTopSeat(S.oya)){
+const br=S.baseRounds||S.rounds;const ext=rl.extend!=='off';
+// 延長戦(南入・西入)中は、誰かが30000点以上になった時点で終了
+if(ext&&S.round>=br&&Math.max(...S.scores)>=30000){endGame('延長戦: 30000点以上の人が出たため終了');return;}
+// オーラスの親の和了止め/聴牌止め(親がトップで、延長戦ありなら30000点以上のとき)
+if(oyaWin&&S.round===br-1&&rl.allLast!=='off'&&isTopSeat(S.oya)&&(!ext||S.scores[S.oya]>=30000)){
  if(!ryu){endGame('オーラス: 親がトップで和了(和了止め)');return;}
  if(exh&&rl.allLast==='tenpai'){endGame('オーラス: 親がトップで聴牌(聴牌止め)');return;}
 }
 if(ryu){S.honba++;if(!oyaWin){S.oya=(S.oya+1)%4;S.round++;}}
 else{S.kyotaku=0;if(oyaWin){S.honba++;}else{S.honba=0;S.oya=(S.oya+1)%4;S.round++;}}
-if(S.round>=S.rounds){endGame('');return;}
+if(S.round>=S.rounds){
+ if(ext&&S.rounds===br&&Math.max(...S.scores)<30000){S.rounds+=4;const nm=['南','西','北'][Math.min(2,(br>>2)-1)];log(`${nm}入: 30000点以上の人がいないため延長戦に入ります`);}
+ else{endGame('');return;}
+}
 document.getElementById('resultModal').classList.remove('open');
 setTimeout(startKyoku,400);}
 
