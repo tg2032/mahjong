@@ -232,6 +232,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・<span class="kbd">延長戦</span>: 規定の局が終わっても30000点以上の人がいなければ、東風戦は<b>南入</b>、東南戦は<b>西入</b>で延長(最大4局)。延長中は30000点以上の人が出た時点で終了します。オーラス止めは親が30000点以上のときに働きます<br>
 ・<span class="kbd">加槓・槍槓</span>: ポンした牌と同じ牌を持っているとき、ツモ番で「加槓」ができます。加槓される牌で和了できる他家は<span class="kbd">槍槓</span>で和了できます。ダブルリーチ・天和・地和・三色同刻・九蓮宝燈・四槓子にも対応<br>
 ・<span class="kbd">リーチ後の暗槓</span>: 引いた牌で4枚そろい、待ちが変わらない場合だけできます。<span class="kbd">ダブル役満</span>(国士十三面・四暗刻単騎・純正九蓮宝燈・大四喜)と<span class="kbd">切り上げ満貫</span>はルール設定で切り替えられます<br>
+・<span class="kbd">責任払い(パオ)</span>: 3枚目の三元牌(大三元)/4枚目の風牌(大四喜)を鳴かせた人が責任者。ツモ和了は責任者が全額、ロン和了は責任者と放銃者が半額ずつ負担します(ルール設定で切り替え可)<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -363,6 +364,7 @@ const RULE_DEFS=[
 {k:'extend',l:'延長戦(30000点未満なら 南入/西入)',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'dbl',l:'ダブル役満(国士十三面・四暗刻単騎・純正九蓮宝燈・大四喜)',o:[['on','あり'],['off','なし(通常の役満)']],d:'on'},
 {k:'kiriage',l:'切り上げ満貫(30符4翻・60符3翻)',o:[['off','なし'],['on','あり']],d:'off'},
+{k:'pao',l:'責任払い(大三元・大四喜)',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'tobi',l:'トビ終了(持ち点0未満)',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'aka',l:'赤ドラ',o:[['on','あり(各1枚)'],['off','なし']],d:'on'},
 {k:'kuikae',l:'喰い替え禁止',o:[['on','あり'],['off','なし']],d:'on'},
@@ -682,7 +684,7 @@ S.wall=wall;S.dead=dead;S.rinTiles=dead.slice(0,4);S.doraInd=[dead[4]];S.ura=[de
 S.hands=[[],[],[],[]];for(let i=0;i<13;i++)for(let p=0;p<4;p++)S.hands[(S.oya+p)%4].push(S.wall.pop());
 S.hands[S.oya].push(S.wall.pop());
 S.rivers=[[],[],[],[]];S.melds=[[],[],[],[]];S.riichi=[false,false,false,false];S.ippatsu=[false,false,false,false];S.furitenTemp=[false,false,false,false];S.furitenPerm=[false,false,false,false];S.riichiIdx={};
-S.scoresAtStart=S.scores.slice();S.hintIdx=-1;S.callCtx=null;S.dlog=[];S.riichiAt=[-1,-1,-1,-1];S.dblRiichi=[false,false,false,false];S.chankan=false;S.called=[false,false,false,false];S.kuikae=null;S.turn=S.oya;S.drawn=null;S.drawnIdx=-1;S.over=false;S.waiting=false;S.riichiWait=false;S.rinshan=false;
+S.pao=[null,null,null,null];S.scoresAtStart=S.scores.slice();S.hintIdx=-1;S.callCtx=null;S.dlog=[];S.riichiAt=[-1,-1,-1,-1];S.dblRiichi=[false,false,false,false];S.chankan=false;S.called=[false,false,false,false];S.kuikae=null;S.turn=S.oya;S.drawn=null;S.drawnIdx=-1;S.over=false;S.waiting=false;S.riichiWait=false;S.rinshan=false;
 S.hands.forEach((h,i)=>{if(i===S.oya){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);});render();
 log(`--- ${roundName()} ${S.honba}本場 ドラ:${tName(nextIndicator(S.doraInd[0]))} ---`);
 if(S.turn!==0)setTimeout(()=>{if(myAct===actId)aiDraw();},700);else setTimeout(()=>{if(myAct===actId)playerDraw(false);},300);}
@@ -905,7 +907,7 @@ setControls(btns);autoHint();}
 function doPon(p,from,tile){
 S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];const b=baseOf(tile);
 const taken=[];for(let i=h.length-1;i>=0&&taken.length<2;i--){if(baseOf(h[i])===b){taken.push(h.splice(i,1)[0]);}}
-S.melds[p].push({type:'pon',tiles:[...taken, tile].map(x=>x),closed:false});
+S.melds[p].push({type:'pon',tiles:[...taken, tile].map(x=>x),closed:false});setPao(p,from);
 S.kuikae={p,set:kuikaeSet('pon',tile)};say('ポン');log(`${seatName(p)}: ポン ${tName(b)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();beep(500,0.06);
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='ポン: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
@@ -920,7 +922,7 @@ function doMinkan(p,from,tile){
 if(S.kanCount>=4||S.rinTiles.length===0)return;
 S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];const b=baseOf(tile);
 const taken=[];for(let i=h.length-1;i>=0&&taken.length<3;i--){if(baseOf(h[i])===b){taken.push(h.splice(i,1)[0]);}}
-S.melds[p].push({type:'kan',tiles:[...taken, tile],closed:false});
+S.melds[p].push({type:'kan',tiles:[...taken, tile],closed:false});setPao(p,from);
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
 const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHand(h);h.push(rin);S.drawn=rin;S.drawnIdx=h.length-1;}
@@ -1082,6 +1084,17 @@ document.getElementById('resScore').style.whiteSpace='pre-line';document.getElem
   else dl.innerHTML='';}}
 document.getElementById('resultModal').classList.add('open');
 document.getElementById('nextBtn').onclick=()=>{document.getElementById('resultModal').classList.remove('open');next();};}
+// 責任払い: 3枚目の三元牌/4枚目の風牌を鳴かせた人(from)が責任者
+function setPao(p,from){
+if(R().pao==='off')return;S.pao=S.pao||[null,null,null,null];
+const ms=S.melds[p];const last=ms[ms.length-1];const lb=baseOf(last.tiles[0]);
+const isKou=m=>m.type==='pon'||m.type==='kan'||m.type==='ankan';
+const have=set=>set.filter(b=>ms.some(m=>isKou(m)&&baseOf(m.tiles[0])===b)).length;
+const dr=['z5','z6','z7'],wd=['z1','z2','z3','z4'];
+if(dr.includes(lb)&&have(dr)===3)S.pao[p]={q:from,kind:'dragon'};
+else if(wd.includes(lb)&&have(wd)===4)S.pao[p]={q:from,kind:'wind'};}
+function paoOf(p,info){const pa=S.pao&&S.pao[p];if(!pa||R().pao==='off')return null;const nm=info.yaku.map(y=>y[0]);
+if(pa.kind==='dragon'&&nm.includes('大三元'))return pa;if(pa.kind==='wind'&&nm.includes('大四喜'))return pa;return null;}
 function doraExtra(p){const tl=a=>a.map(t=>tileHTML(t,'sm')).join('');
 let h='ドラ表示牌: '+tl(S.doraInd);if(S.riichi[p])h+='　裏ドラ表示牌: '+tl(S.ura.slice(0,S.doraInd.length));return h;}
 function tenpaiExtra(tp){const hs=tp.map((t,i)=>{if(!t)return'';const hh=S.hands[i].slice();sortHand(hh);
@@ -1093,12 +1106,15 @@ const info=scoreInfo(p,S.hands[p],S.drawn,true);
 if(info.han===0){S.over=false;log('役なし(ツモ見逃し扱いで続行)');if(p===0)playerDraw(false);else aiDiscard(p,false);return;}
 const dealer=(p===S.oya);const sc=scoreByHanFu(info.han,info.fu,dealer,true);
 let gain=0;
-if(dealer){gain=sc.all*3+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=sc.all+S.honba*100;}S.scores[p]+=gain;}
+const pa=paoOf(p,info);
+if(pa){const total=(dealer?sc.all*3:sc.dealer+sc.child*2)+S.honba*300;S.scores[pa.q]-=total;gain=total+S.kyotaku*1000;S.scores[p]+=gain;}
+else if(dealer){gain=sc.all*3+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=sc.all+S.honba*100;}S.scores[p]+=gain;}
 else{gain=sc.dealer+sc.child*2+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=((i===S.oya?sc.dealer:sc.child)+S.honba*100);}S.scores[p]+=gain;}
 beep(880,0.2);setTimeout(()=>beep(1320,0.25),150);
 say('ツモ');log(`🎉 ${seatName(p)} ツモ ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain}`);
 render();
-showResult(`${seatName(p)} ツモ!`,S.hands[p],S.melds[p],info.yaku,`${info.han}翻 ${info.fu}符 +${gain}点 (本場${S.honba} 供託${S.kyotaku})`,()=>nextKyoku(p===S.oya),doraExtra(p));}
+showResult(`${seatName(p)} ツモ!`,S.hands[p],S.melds[p],info.yaku,`${info.han}翻 ${info.fu}符 +${gain}点 (本場${S.honba} 供託${S.kyotaku})${pa?`
+責任払い: ${seatName(pa.q)}が全額負担`:''}`,()=>nextKyoku(p===S.oya),doraExtra(p));}
 function doRon(p,from,tile){doRonMulti([p],from,tile);}
 function doRonMulti(ws,from,tile){
 if(S.over)return;S.over=true;setControls([]);
@@ -1113,15 +1129,18 @@ const res=[];let first=true;
 infos.forEach(({p,hand,info})=>{
  const sc=scoreByHanFu(info.han,info.fu,p===S.oya,false);
  const base=sc.ron+(first?S.honba*300:0);const bonus=first?S.kyotaku*1000:0; // 本場・供託は頭ハネ優先の先頭者
- S.scores[from]-=base;S.scores[p]+=base+bonus;
- res.push({p,hand,info,gain:base+bonus});first=false;});
+ const pa=paoOf(p,info);const split=pa&&pa.q!==from;
+ if(split){const hq=Math.floor(base/2/100)*100;S.scores[pa.q]-=hq;S.scores[from]-=base-hq;}else S.scores[from]-=base;
+ S.scores[p]+=base+bonus;
+ res.push({p,hand,info,gain:base+bonus,pao:split?pa.q:null});first=false;});
 beep(880,0.2);
 say(res.length>1?'ダブロン':'ロン');
 res.forEach(r=>log(`🎉 ${seatName(r.p)} ロン ${r.info.yaku.map(y=>y[0]+y[1]).join(' ')} ${r.info.han}翻${r.info.fu}符 +${r.gain} 放銃:${seatName(from)}`));
 render();
 const oyaWin=res.some(r=>r.p===S.oya);
 const show=k=>{const r=res[k];const last=k===res.length-1;
- showResult(`${seatName(r.p)} ロン!${res.length>1?` ダブロン ${k+1}/${res.length}`:''}`,r.hand,S.melds[r.p],r.info.yaku,`${r.info.han}翻 ${r.info.fu}符 +${r.gain}点 放銃:${seatName(from)}`,last?()=>nextKyoku(oyaWin):()=>show(k+1),doraExtra(r.p));
+ showResult(`${seatName(r.p)} ロン!${res.length>1?` ダブロン ${k+1}/${res.length}`:''}`,r.hand,S.melds[r.p],r.info.yaku,`${r.info.han}翻 ${r.info.fu}符 +${r.gain}点 放銃:${seatName(from)}${r.pao!=null?`
+責任払い: ${seatName(r.pao)}と半額ずつ負担`:''}`,last?()=>nextKyoku(oyaWin):()=>show(k+1),doraExtra(r.p));
  document.getElementById('nextBtn').textContent=last?'次局へ':'次の和了者へ';};
 show(0);}
 // 流し満貫: 捨牌が全て么九牌で、1枚も鳴かれていない
