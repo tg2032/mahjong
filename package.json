@@ -1,0 +1,12 @@
+{
+  "name": "browser-mahjong",
+  "version": "1.0.0",
+  "description": "ブラウザで遊べる4人打ち麻雀(単一HTMLファイル)",
+  "private": true,
+  "scripts": {
+    "test": "node tests/run.js",
+    "test:full": "node tests/run.js --full",
+    "tournament": "node tests/tools/tournament.js"
+  },
+  "engines": { "node": ">=18" }
+}
