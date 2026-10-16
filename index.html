@@ -408,7 +408,12 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|
 const seatName=p=>['あなた','下家','対面','上家'][p];
 // ============ シャンテン・和了 ============
 function normalShanten(cnt,m0=0){let best=8;function rec(i,m,ta,p){while(i<34&&cnt[i]===0)i++;if(i>=34){let t=ta;if(m+t>4)t=4-m;if(m+t>4)t=4-m;best=Math.min(best,8-m*2-t-p);return;}if(p===0&&cnt[i]>=2){cnt[i]-=2;rec(i,m,ta,1);cnt[i]+=2;}if(cnt[i]>=3){cnt[i]-=3;rec(i+1,m+1,ta,p);cnt[i]+=3;}const s=(i/9)|0,n=i%9;if(s<3&&n<=6&&cnt[i]>0&&cnt[i+1]>0&&cnt[i+2]>0){cnt[i]--;cnt[i+1]--;cnt[i+2]--;rec(i,m+1,ta,p);cnt[i]++;cnt[i+1]++;cnt[i+2]++;}if(cnt[i]>=2){cnt[i]-=2;rec(i,m,ta+1,p);cnt[i]+=2;}if(s<3&&n<=7&&cnt[i]>0&&cnt[i+1]>0){cnt[i]--;cnt[i+1]--;rec(i,m,ta+1,p);cnt[i]++;cnt[i+1]++;}if(s<3&&n<=6&&cnt[i]>0&&cnt[i+2]>0){cnt[i]--;cnt[i+2]--;rec(i,m,ta+1,p);cnt[i]++;cnt[i+2]++;}rec(i+1,m,ta,p);}rec(0,m0,0,0);return best;}
-function shantenAll(hand,meldCount=0){const c=countsOf(hand);let best=normalShanten(c.slice(),meldCount);if(meldCount===0){let pairs=0,kinds=0;for(let i=0;i<34;i++){if(c[i]>0)kinds++;if(c[i]>=2)pairs++;}let chito=6-pairs;if(pairs>0&&c.some(v=>v>=3))chito+=1;best=Math.min(best,chito);const yao=[0,8,9,17,18,26,27,28,29,30,31,32,33];let kok=0,pair=0;yao.forEach(i=>{if(c[i]>=1)kok++;if(c[i]>=2)pair++;});best=Math.min(best,13-kok-(pair?1:0));}return best;}
+const SH_MEMO=new Map();
+function shantenAll(hand,meldCount=0){const c=countsOf(hand);
+const key=c.join('')+'|'+meldCount; // 同じ手牌の形の再計算を避ける(評価エンジンが同じ形を何度も調べるため)
+const hit=SH_MEMO.get(key);if(hit!==undefined)return hit;
+const r=shantenCalc(c,meldCount);if(SH_MEMO.size>40000)SH_MEMO.clear();SH_MEMO.set(key,r);return r;}
+function shantenCalc(c,meldCount){let best=normalShanten(c.slice(),meldCount);if(meldCount===0){let pairs=0,kinds=0;for(let i=0;i<34;i++){if(c[i]>0)kinds++;if(c[i]>=2)pairs++;}let chito=6-pairs;if(pairs>0&&c.some(v=>v>=3))chito+=1;best=Math.min(best,chito);const yao=[0,8,9,17,18,26,27,28,29,30,31,32,33];let kok=0,pair=0;yao.forEach(i=>{if(c[i]>=1)kok++;if(c[i]>=2)pair++;});best=Math.min(best,13-kok-(pair?1:0));}return best;}
 const YAO_IDX=[0,8,9,17,18,26,27,28,29,30,31,32,33];
 function isKokushi(c){let p=0;for(const i of YAO_IDX){if(c[i]===0)return false;if(c[i]>2)return false;if(c[i]>=2)p++;}let tot=0;for(let i=0;i<34;i++)tot+=c[i];return tot===14&&p===1;}
 function isChiitoi(c){let p=0;for(let i=0;i<34;i++){if(c[i]===1||c[i]>2)return false;if(c[i]===2)p++;}return p===7;}
