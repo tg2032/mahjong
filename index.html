@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ブラウザ麻雀 | 4人打ち・単一ファイル</title>
 <meta name="description" content="ブラウザで遊べる4人打ち麻雀。単一HTMLファイル。GitHub Pages対応。">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b3d2e">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <style>
 :root{--tw:26px;--th:36px;--rg:2px;--bg:#0b3d2e;--felt:#0f6b4d;--felt2:#0d5a41;--gold:#ffca28;--aka:#e53935}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -199,7 +205,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 <div id="wallInfo" style="font-size:12px">残り -</div>
 <div id="turnInfo">開始を押してください</div>
 <div id="settingsRow" style="display:flex;flex-direction:column;gap:4px;align-items:center;font-size:12px"><div id="ruleSummary" style="font-size:11px;opacity:.9;text-align:center"></div><button class="dark" id="ruleBtn2" style="padding:5px 12px;font-size:12px">⚙ ルール設定</button></div>
-<div style="display:flex;gap:8px"><button id="startBtn" class="green">対局開始</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button id="startBtn" class="green">対局開始</button><button id="resumeBtn" class="blue" style="display:none">続きから</button></div>
 </div>
 <div class="seat" id="seat0"></div>
 </div>
@@ -233,6 +239,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・<span class="kbd">加槓・槍槓</span>: ポンした牌と同じ牌を持っているとき、ツモ番で「加槓」ができます。加槓される牌で和了できる他家は<span class="kbd">槍槓</span>で和了できます。ダブルリーチ・天和・地和・三色同刻・九蓮宝燈・四槓子にも対応<br>
 ・<span class="kbd">リーチ後の暗槓</span>: 引いた牌で4枚そろい、待ちが変わらない場合だけできます。<span class="kbd">ダブル役満</span>(国士十三面・四暗刻単騎・純正九蓮宝燈・大四喜)と<span class="kbd">切り上げ満貫</span>はルール設定で切り替えられます<br>
 ・<span class="kbd">責任払い(パオ)</span>: 3枚目の三元牌(大三元)/4枚目の風牌(大四喜)を鳴かせた人が責任者。ツモ和了は責任者が全額、ロン和了は責任者と放銃者が半額ずつ負担します(ルール設定で切り替え可)<br>
+・<span class="kbd">続きから</span>: 対局は各局の開始時に自動保存されます。ブラウザを閉じても、開き直すと「続きから」で再開できます(その局は配牌からやり直し)<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -678,7 +685,7 @@ btn.onclick=()=>{
     btn.textContent='対局開始';btn.disabled=false;phase='done';}},80);
  }else if(phase==='done'){document.getElementById('diceModal').classList.remove('open');newGame(oya);}
 };}
-function startKyoku(){actId++;const myAct=actId;
+function startKyoku(){saveProgress();actId++;const myAct=actId;
 const wall=buildWall();const dead=wall.splice(0,14);
 S.wall=wall;S.dead=dead;S.rinTiles=dead.slice(0,4);S.doraInd=[dead[4]];S.ura=[dead[5]];S.kanCount=0;
 S.hands=[[],[],[],[]];for(let i=0;i<13;i++)for(let p=0;p<4;p++)S.hands[(S.oya+p)%4].push(S.wall.pop());
@@ -1178,8 +1185,16 @@ if(!st||!Array.isArray(st.ranks))st={games:0,ranks:[0,0,0,0],sum:0,best:0};
 const rk=1+S.scores.filter(x=>x>S.scores[0]).length;st.games++;st.ranks[rk-1]++;st.sum+=rk;st.best=Math.max(st.best,S.scores[0]);
 lsSet('mj_stats',JSON.stringify(st));
 return `あなた: ${rk}位 / 通算 ${st.games}戦 平均順位 ${(st.sum/st.games).toFixed(2)} (1位${st.ranks[0]}・2位${st.ranks[1]}・3位${st.ranks[2]}・4位${st.ranks[3]}) 最高持ち点 ${st.best}`;}
+// ---- 対局の中断・再開(各局の開始時に保存。再開した局は配牌からやり直し) ----
+function saveProgress(){try{localStorage.setItem('mj_save',JSON.stringify({v:1,scores:S.scores,round:S.round,rounds:S.rounds,baseRounds:S.baseRounds,honba:S.honba,kyotaku:S.kyotaku,oya:S.oya,rules:S.rules}));}catch(e){}}
+function clearSave(){try{localStorage.removeItem('mj_save');}catch(e){}}
+function loadSave(){try{const o=JSON.parse(lsGet('mj_save','null'));
+ if(o&&o.v===1&&Array.isArray(o.scores)&&o.scores.length===4&&o.scores.every(x=>Number.isFinite(x))&&Number.isInteger(o.round)&&Number.isInteger(o.rounds)&&o.round>=0&&o.round<o.rounds&&Number.isInteger(o.oya)&&o.oya>=0&&o.oya<4&&Number.isFinite(o.honba)&&Number.isFinite(o.kyotaku)&&o.rules&&typeof o.rules==='object')return o;}catch(e){}return null;}
+function resumeGame(o){
+S={scores:o.scores.slice(),round:o.round,rounds:o.rounds,baseRounds:o.baseRounds||o.rounds,rules:o.rules,honba:o.honba,kyotaku:o.kyotaku,oya:o.oya};
+log(`対局再開: ${roundName()} ${S.honba}本場 / 親:${seatName(S.oya)}`);startKyoku();}
 function endGame(reason){
-S.ended=true;
+S.ended=true;clearSave();
 const statText=recordStats();
 const rank=S.scores.map((sc,i)=>[sc,i]).sort((a,b)=>b[0]-a[0]);
 showResult('対局終了',[],[],rank.map(([sc,i],k)=>[`${k+1}位 ${seatName(i)}`,sc+'点']),`${reason?reason+' / ':''}最終: ${S.scores.map((sc,i)=>seatName(i)+sc).join(' / ')}\n${statText}`,()=>{document.getElementById('resultModal').classList.remove('open');document.getElementById('startBtn').style.display='';document.getElementById('settingsRow').style.display='flex';});
@@ -1495,7 +1510,8 @@ ok('チー可(上家から)',chiOptionsFor(['m1','m2'],'m3',3,0).length>0);
 finally{S=saved;}
 alert(out.join('\n'));}
 // ---- 配線 ----
-document.getElementById('startBtn').onclick=e=>{e.target.style.display='none';document.getElementById('settingsRow').style.display='none';openDiceModal();};
+document.getElementById('resumeBtn').style.display='none';
+document.getElementById('startBtn').onclick=e=>{e.target.style.display='none';document.getElementById('resumeBtn').style.display='none';document.getElementById('settingsRow').style.display='none';openDiceModal();};
 document.getElementById('nextBtn').onclick=()=>document.getElementById('resultModal').classList.remove('open');
 document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.add('open');
 document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').classList.remove('open');
@@ -1505,7 +1521,13 @@ document.getElementById('soundBtn').onclick=()=>{soundOn=!soundOn;lsSet('mj_soun
 document.getElementById('voiceBtn').onclick=()=>{voiceOn=!voiceOn;lsSet('mj_voice',voiceOn?'1':'0');syncAudioBtns();try{if(!voiceOn&&window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}if(voiceOn)say('声オン');};
 syncAudioBtns();
 initRules();
+// ホーム画面に追加・オフライン対応(http/https のときだけ)
+try{if(typeof navigator!=='undefined'&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}catch(e){}
 document.getElementById('testBtn').onclick=selfTest;
+(function(){const sv=loadSave();if(!sv)return;const rb=document.getElementById('resumeBtn');
+ const rn=['東','南','西','北'][Math.min(3,sv.round>>2)]+((sv.round%4)+1)+'局';
+ rb.textContent=`続きから(${rn}${sv.honba?' '+sv.honba+'本場':''})`;rb.style.display='';
+ rb.onclick=()=>{rb.style.display='none';document.getElementById('startBtn').style.display='none';document.getElementById('settingsRow').style.display='none';resumeGame(sv);};})();
 document.getElementById('hintBtn').onclick=showHint;
 applyHintMode();
 document.getElementById('ruleBtn').onclick=openRuleModal;

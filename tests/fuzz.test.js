@@ -26,6 +26,18 @@ exports.run = t => {
     if (S.wall.length < 0 || S.rinTiles.length < 0) note('山の枚数が負', where);
   };
 
+  // 画面の文言(状況表示・ボタン・ログ)に、内部コードや未定義値が漏れていないこと
+  const BAD = /undefined|NaN|\[object|(^|[^A-Za-z0-9_])[mpsz][0-9](?![A-Za-z0-9_])/;
+  const textBad = new Map();
+  let logSeen = 0;
+  const scanText = where => {
+    const cands = [['状況表示', els.turnInfo && els.turnInfo.textContent]];
+    g.buttons().forEach(b => cands.push(['ボタン', b.textContent]));
+    const lg = els.log ? els.log.children : [];
+    for (; logSeen < lg.length; logSeen++) cands.push(['ログ', lg[logSeen].textContent]);
+    cands.forEach(([k, v]) => { if (typeof v === 'string' && BAD.test(v) && !textBad.has(v)) textBad.set(v, k + ' @' + where); });
+  };
+
   const rules = () => {
     const r = {};
     G.RULE_DEFS.forEach(d => { r[d.k] = pick(d.o)[0]; });
@@ -37,12 +49,12 @@ exports.run = t => {
   const errs = [];
   for (let n = 0; n < GAMES; n++) {
     const r = rules(); g.setLevel(pick([0, 1, 1, 2]));
-    g.timers.length = 0; G.newGame(Math.floor(Math.random() * 4));
+    g.timers.length = 0; if (els.log) els.log.children.length = 0; logSeen = 0; G.newGame(Math.floor(Math.random() * 4));
     let steps = 0, done = false;
     const guard = (label, fn) => { try { fn(); } catch (e) { errs.push(label + ': ' + e.message); done = true; } };
     while (!done && steps++ < 60000) {
       const S = G.S;
-      if (g.timers.length) { guard('timer', () => g.timers.shift()()); check(G.S, JSON.stringify(r)); continue; }
+      if (g.timers.length) { guard('timer', () => g.timers.shift()()); check(G.S, JSON.stringify(r)); scanText('timer'); continue; }
       if (S.ended) { ends++; done = true; break; }
       if (S.over) { guard('next', () => els.nextBtn.onclick()); continue; }
       if (S.waiting) { const b = pick(g.buttons()); if (b) { guard('call', () => b.onclick()); check(G.S, 'call'); continue; } }
@@ -58,6 +70,7 @@ exports.run = t => {
   t.ok(`${GAMES}局すべて最後まで終了`, ends === GAMES);
   t.ok('停止(進行不能)がない', stalls === 0);
   t.ok('例外がない' + (errs.length ? ' → ' + errs.slice(0, 3).join(' | ') : ''), errs.length === 0);
+  t.ok('画面の文言に内部コード・undefined・NaNがない' + (textBad.size ? ' → ' + [...textBad.entries()].slice(0, 3).map(([v, k]) => JSON.stringify(v) + ' (' + k + ')').join(' | ') : ''), textBad.size === 0);
   t.ok('不変条件の違反がない' + (viol.size ? ' → ' + [...viol.keys()].slice(0, 3).join(' | ') : ''), viol.size === 0);
 
   // スモーク: 各レベルのCPUで東風戦・半荘を通して遊べる

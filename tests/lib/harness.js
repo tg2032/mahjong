@@ -18,12 +18,13 @@ function makeEl(id) {
 
 const RULE_KEYS = ['len', 'ron', 'renhou', 'allLast', 'extend', 'dbl', 'kiriage', 'pao', 'tobi', 'aka', 'kuikae', 'nagashi', 'abortive'];
 
-function loadGame(htmlPath) {
+function loadGame(htmlPath, opts = {}) {
   const file = htmlPath || process.env.MAHJONG_HTML || path.join(__dirname, '..', '..', 'index.html');
   const html = fs.readFileSync(file, 'utf8');
   const code = html.match(/<script>([\s\S]*)<\/script>/)[1];
   const els = {};
   const timers = [];
+  const store = opts.store || new Map();
   const document = {
     getElementById: id => els[id] || (els[id] = makeEl(id)),
     createElement: () => makeEl('x'),
@@ -34,7 +35,7 @@ function loadGame(htmlPath) {
   let alertText = '';
   const sandbox = {
     document, location: { search: '' }, console, Math,
-    localStorage: { getItem: () => null, setItem() {} },
+    localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
     alert: m => { alertText = String(m); }, confirm: () => true,
     setTimeout: f => { timers.push(f); return 0; }, setInterval: () => 0, clearInterval() {},
   };
@@ -56,7 +57,7 @@ function loadGame(htmlPath) {
   });
 
   const g = {
-    G, els, timers,
+    G, els, timers, store,
     get alertText() { return alertText; },
     flush(max = 200000) { while (timers.length && max-- > 0) timers.shift()(); },
     // ルール設定(対局開始時に読み取られる)を上書き。指定しないキーは既定値
