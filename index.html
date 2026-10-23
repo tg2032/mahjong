@@ -240,6 +240,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 ・<span class="kbd">リーチ後の暗槓</span>: 引いた牌で4枚そろい、待ちが変わらない場合だけできます。<span class="kbd">ダブル役満</span>(国士十三面・四暗刻単騎・純正九蓮宝燈・大四喜)と<span class="kbd">切り上げ満貫</span>はルール設定で切り替えられます<br>
 ・<span class="kbd">責任払い(パオ)</span>: 3枚目の三元牌(大三元)/4枚目の風牌(大四喜)を鳴かせた人が責任者。ツモ和了は責任者が全額、ロン和了は責任者と放銃者が半額ずつ負担します(ルール設定で切り替え可)<br>
 ・<span class="kbd">続きから</span>: 対局は各局の開始時に自動保存されます。ブラウザを閉じても、開き直すと「続きから」で再開できます(その局は配牌からやり直し)<br>
+・<span class="kbd">キーボード</span>: ←→で牌を選択、Enter/Spaceで打牌、Tでツモ切り、Hでヒント、Pでパス(鳴きの場面)、Escで選択解除、結果画面はEnterで次へ<br>
 ・<span class="kbd">効果音</span>と<span class="kbd">声</span>(リーチ・ポン・ロン等の発声)は、ヘッダのボタンで個別にON/OFFできます<br>
 ・<span class="kbd">?test=1</span> や自己診断ボタンで和了・シャンテン等の単体テスト実行</p>
 <div class="row"><button id="closeHelp" class="dark">閉じる</button></div></div></div>
@@ -258,7 +259,8 @@ if(k==='m')face=manSVG(n,aka!=='');
 else if(k==='p')face=pinSVG(n,aka!=='');
 else if(k==='s')face=souSVG(n,aka!=='');
 else face=honSVG(n);
-return `<div class="tile ${cls}${aka}"><div class="face">${face}</div></div>`;}
+const nm=(aka?'赤':'')+tName(b);
+return `<div class="tile ${cls}${aka}" role="img" aria-label="${nm}" title="${nm}"><div class="face">${face}</div></div>`;}
 const SERIF="'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif";
 function manSVG(n,aka){
  const KAN=['','一','二','三','四','五','六','七','八','九'];
@@ -1540,7 +1542,21 @@ document.getElementById('ruleBtn2').onclick=openRuleModal;
 document.getElementById('closeRule').onclick=()=>document.getElementById('ruleModal').classList.remove('open');
 document.getElementById('sortBtn').onclick=()=>{if(S){const h=S.hands[0];if(S.drawnIdx>=0&&S.drawnIdx===h.length-1){const d=h.pop();sortHand(h);h.push(d);}else sortHand(h);render();}};
 document.getElementById('tsumogiriBtn').onclick=()=>{if(S&&S.turn===0&&!S.waiting&&!S.over&&S.drawnIdx>=0){onPlayerDiscard(S.drawnIdx);}};
-document.addEventListener('keydown',e=>{if((e.key==='t'||e.key==='T')&&S&&S.turn===0&&!S.waiting&&!S.over&&S.drawnIdx>=0&&!document.getElementById('resultModal').classList.contains('open')){onPlayerDiscard(S.drawnIdx);}});
+// キーボード操作: ←→で牌を選択、Enter/Spaceで打牌、Tでツモ切り、Hでヒント、Pでパス(鳴きの場面)、Escで選択解除
+function onKey(e){
+if(!S)return;const k=e.key;const stop=()=>{if(e.preventDefault)e.preventDefault();};
+if(document.getElementById('resultModal').classList.contains('open')){if(k==='Enter'){stop();const nb=document.getElementById('nextBtn');if(nb&&nb.onclick)nb.onclick();}return;}
+if(typeof document.querySelector==='function'&&document.querySelector('.modal.open'))return;
+if(S.over)return;
+if(k==='h'||k==='H'){stop();showHint();return;}
+if(S.waiting){if(k==='p'||k==='P'){stop();const pb=typeof document.querySelector==='function'?document.querySelector('#controls button[data-key="pass"]'):null;if(pb&&pb.onclick)pb.onclick();}return;}
+if(S.turn!==0)return;
+const len=S.hands[0].length;
+if(k==='ArrowLeft'||k==='ArrowRight'){stop();const cur=S.sel?S.sel.i:(S.drawnIdx>=0?S.drawnIdx:len-1);const ni=Math.max(0,Math.min(len-1,cur+(k==='ArrowLeft'?-1:1)));S.sel={i:ni,t:S.hands[0][ni]};paintCand();return;}
+if(k==='Escape'){S.sel=null;paintCand();return;}
+if(k==='Enter'||k===' '){stop();const i=S.sel?S.sel.i:S.drawnIdx;if(i>=0)onPlayerDiscard(i);return;}
+if((k==='t'||k==='T')&&S.drawnIdx>=0){onPlayerDiscard(S.drawnIdx);}}
+document.addEventListener('keydown',onKey);
 if(location.search.includes('test=1'))setTimeout(selfTest,500);
 </script>
 </body>
