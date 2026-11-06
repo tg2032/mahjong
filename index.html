@@ -221,7 +221,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 
 <div class="modal" id="resultModal"><div class="card"><h2 id="resTitle"></h2><div id="resHand"></div><div id="resExtra" style="font-size:12px;margin:6px 0;line-height:1.9"></div><table id="resTable"></table><table id="resDelta" style="margin-top:6px"></table><div id="resScore" style="font-weight:bold"></div><div class="row"><button id="nextBtn" class="green">次局へ</button></div></div></div>
 <div class="modal" id="diceModal"><div class="card"><h2>🎲 親決め</h2><p style="font-size:13px">サイコロを2個振り、出目の合計で親を決めます。(1=あなた、2=下家、3=対面、4=上家…と反時計回りに数える)</p><div id="diceFaces"></div><div id="diceText"></div><div class="row" style="justify-content:center"><button id="diceBtn" class="green">サイコロを振る</button></div></div></div>
-<div class="modal" id="ruleModal"><div class="card"><h2>⚙ ルール設定</h2><div id="ruleNote" style="font-size:12px;color:#b71c1c;margin-bottom:6px"></div><div id="ruleList"></div><div class="row"><button id="closeRule" class="dark">閉じる</button></div></div></div>
+<div class="modal" id="ruleModal"><div class="card"><h2>⚙ ルール設定</h2><div id="ruleNote" style="font-size:12px;color:#b71c1c;margin-bottom:6px"></div><div id="ruleList"></div><div id="statsBox" style="margin-top:12px;padding:8px 10px;background:#f1f5f1;border-radius:8px;font-size:13px;line-height:1.7"></div><div class="row"><button id="closeRule" class="dark">閉じる</button></div></div></div>
 <div class="modal" id="helpModal"><div class="card"><h2>遊び方</h2>
 <p style="font-size:13px;line-height:1.7">あなたは画面下。座席は反時計回りで、右が下家・上が対面・左が上家です。親はサイコロで決まり、CPU3人と東風戦(東1〜東4局)または東南戦(東1局〜南4局。<span class="kbd">南入</span>で南場に入り、場風が南になります)を打ちます。25000点持ち。CPUの強さは対局開始前に選べます。<br>
 ・ツモ牌は右端に金枠で表示。捨てたい牌をクリック(スマホ・タッチ操作は<b>1回タップで選択、もう一度タップで打牌</b>) / 右側の<span class="kbd">ツモ切り</span>でも可<br>
@@ -395,7 +395,14 @@ h+='<h3>ルール(対局開始時に確定。対局中は変更できません)<
 list.innerHTML=h;
 list.querySelectorAll('select').forEach(e=>{e.onchange=()=>{if(e.id==='cpuLevel')lsSet('mj_level',e.value);else if(e.id==='hintMode'){lsSet('mj_hintmode',e.value);if(typeof applyHintMode==='function')applyHintMode();}else lsSet('mj_r_'+e.id.slice(5),e.value);updateRuleSummary();};});
 updateRuleSummary();}
-function openRuleModal(){
+function statsText(){let st=null;try{st=JSON.parse(lsGet('mj_stats','null'));}catch(e){}
+if(!st||!Array.isArray(st.ranks)||!st.games)return '通算成績: まだ対局がありません';
+return `通算成績: ${st.games}戦 / 平均順位 ${(st.sum/st.games).toFixed(2)} / 1位${st.ranks[0]}回・2位${st.ranks[1]}回・3位${st.ranks[2]}回・4位${st.ranks[3]}回 / 最高持ち点 ${st.best}`;}
+function refreshStats(){const b=document.getElementById('statsBox');if(!b)return;b.innerHTML='';
+ const tx=document.createElement('div');tx.textContent=statsText();b.appendChild(tx);
+ const rb=document.createElement('button');rb.textContent='成績をリセット';rb.className='dark';rb.style.cssText='padding:4px 10px;font-size:12px;margin-top:4px';
+ rb.onclick=()=>{try{localStorage.removeItem('mj_stats');}catch(e){}refreshStats();};b.appendChild(rb);}
+function openRuleModal(){refreshStats();
 const locked=!!(S&&S.rules&&!S.ended);
 document.querySelectorAll('#ruleList select').forEach(e=>{e.disabled=locked&&e.id.startsWith('rule_');});
 document.getElementById('ruleNote').textContent=locked?'対局中のため、ルールは変更できません(CPUの強さとヒントは変更できます)。':'';

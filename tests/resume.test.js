@@ -36,6 +36,18 @@ exports.run = t => {
   const g3 = loadGame(undefined, { store: g2.store });
   t.ok('終了後は「続きから」が出ない', g3.els.resumeBtn.style.display === 'none');
 
+  // 通算成績の表示・リセット
+  const gs = loadGame(); gs.G.openRuleModal();
+  t.ok('成績がないとき', /まだ対局がありません/.test(gs.G.statsText()));
+  gs.store.set('mj_stats', JSON.stringify({ games: 4, ranks: [2, 1, 1, 0], sum: 7, best: 41000 }));
+  t.ok('成績の表示(平均順位・順位別回数・最高持ち点)', /4戦/.test(gs.G.statsText()) && /1\.75/.test(gs.G.statsText()) && /1位2回/.test(gs.G.statsText()) && /41000/.test(gs.G.statsText()));
+  gs.G.openRuleModal();
+  const box = gs.els.statsBox.children;
+  t.ok('ルール画面に成績とリセットボタンが出る', box.length === 2 && /通算成績/.test(box[0].textContent) && box[1].textContent === '成績をリセット');
+  box[1].onclick();
+  t.ok('リセットで成績が消える', !gs.store.has('mj_stats') && /まだ対局がありません/.test(gs.els.statsBox.children[0].textContent));
+  gs.store.set('mj_stats', '{壊れ'); t.ok('壊れた成績データでも落ちない', /まだ対局がありません/.test(gs.G.statsText()));
+
   // 壊れた保存データは無視される
   for (const bad of ['{', 'null', '{"v":1}', '{"v":1,"scores":[1,2,3],"round":0,"rounds":4,"oya":0,"honba":0,"kyotaku":0,"rules":{}}', '{"v":1,"scores":[1,2,3,4],"round":9,"rounds":4,"oya":0,"honba":0,"kyotaku":0,"rules":{}}', '{"v":1,"scores":[1,2,3,"x"],"round":0,"rounds":4,"oya":0,"honba":0,"kyotaku":0,"rules":{}}']) {
     const st = new Map([['mj_save', bad]]);
