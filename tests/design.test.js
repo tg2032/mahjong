@@ -13,4 +13,10 @@ exports.run = t => {
   t.ok('牌の表示に未定義の値が混ざらない', G.TYPES.concat(['m0', 'p0', 's0']).every(x => !/undefined|NaN/.test(G.tileHTML(x))));
   const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
   t.ok('動きを減らす設定(prefers-reduced-motion)に配慮', /prefers-reduced-motion:\s*reduce/.test(html));
+  // 対局ログのテキスト化(コピー用)
+  g.setRules(); g.fresh(1);
+  const lt = G.logText();
+  t.ok('対局ログ: 対局開始と親が記録される', /対局開始/.test(lt) && /親:/.test(lt));
+  t.ok('対局ログ: 1行1出来事で改行区切り', lt.split('\n').length >= 2);
+  t.ok('対局ログに内部コードが漏れない', !/(^|[^A-Za-z0-9_])[mpsz][0-9](?![A-Za-z0-9_])/.test(lt));
 };

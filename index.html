@@ -217,6 +217,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 <div id="controls"></div>
 <div id="hintBox" class="hintbox" style="display:none"></div>
 <div id="log"></div>
+<div style="text-align:right;margin-top:4px"><button class="dark" id="copyLogBtn" style="padding:4px 10px;font-size:12px">📋 ログをコピー</button></div>
 </div>
 
 <div class="modal" id="resultModal"><div class="card"><h2 id="resTitle"></h2><div id="resHand"></div><div id="resExtra" style="font-size:12px;margin:6px 0;line-height:1.9"></div><table id="resTable"></table><table id="resDelta" style="margin-top:6px"></table><div id="resScore" style="font-weight:bold"></div><div class="row"><button id="nextBtn" class="green">次局へ</button></div></div></div>
@@ -412,6 +413,12 @@ function LV(p){if(p!==undefined&&typeof S!=='undefined'&&S&&S.levels&&S.levels[p
 const e=document.getElementById('cpuLevel');const v=e?+e.value:1;return v>=0&&v<=2?v:1;}
 function beep(f=440,d=0.07){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.value=0.08;o.start();o.stop(AC.currentTime+d);}catch(e){}}
 let S=null;let actId=0;
+// 対局ログ(牌譜)のテキスト化とコピー
+function logText(){const e=document.getElementById('log');return (e&&e.children?e.children:[]).map(d=>d.textContent).join('\n');}
+function copyLog(){const tx=logText();const btn=document.getElementById('copyLogBtn');
+ const done=ok=>{if(btn){btn.textContent=ok?'✓ コピーしました':'コピーできませんでした';setTimeout(()=>{btn.textContent='📋 ログをコピー';},1800);}};
+ try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tx).then(()=>done(true),()=>done(false));return;}}catch(e){}
+ try{const ta=document.createElement('textarea');ta.value=tx;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();done(ok);}catch(e){done(false);}}
 function log(m){const e=document.getElementById('log');const d=document.createElement('div');d.textContent=m;e.appendChild(d);e.scrollTop=1e9;}
 function countsOf(hand){const c=new Array(34).fill(0);hand.forEach(t=>c[T2I[t]]++);return c;}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -1539,6 +1546,7 @@ initRules();
 // ホーム画面に追加・オフライン対応(http/https のときだけ)
 try{if(typeof navigator!=='undefined'&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}catch(e){}
 document.getElementById('testBtn').onclick=selfTest;
+document.getElementById('copyLogBtn').onclick=copyLog;
 (function(){const sv=loadSave();if(!sv)return;const rb=document.getElementById('resumeBtn');
  const rn=['東','南','西','北'][Math.min(3,sv.round>>2)]+((sv.round%4)+1)+'局';
  rb.textContent=`続きから(${rn}${sv.honba?' '+sv.honba+'本場':''})`;rb.style.display='';
