@@ -204,7 +204,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 <div id="honbaInfo">0本場 供託0</div>
 <div id="wallbar"><i id="wallfill"></i></div>
 <div id="wallInfo" style="font-size:12px">残り -</div>
-<div id="turnInfo">開始を押してください</div>
+<div id="turnInfo" role="status" aria-live="polite">開始を押してください</div>
 <div id="settingsRow" style="display:flex;flex-direction:column;gap:4px;align-items:center;font-size:12px"><div id="ruleSummary" style="font-size:11px;opacity:.9;text-align:center"></div><button class="dark" id="ruleBtn2" style="padding:5px 12px;font-size:12px">⚙ ルール設定</button></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button id="startBtn" class="green">対局開始</button><button id="resumeBtn" class="blue" style="display:none">続きから</button></div>
 </div>
@@ -216,7 +216,7 @@ header button{padding:5px 9px!important;font-size:12px!important}
 </div>
 <div id="controls"></div>
 <div id="hintBox" class="hintbox" style="display:none"></div>
-<div id="log"></div>
+<div id="log" role="log" aria-label="対局ログ" aria-live="off"></div>
 <div style="text-align:right;margin-top:4px"><button class="dark" id="copyLogBtn" style="padding:4px 10px;font-size:12px">📋 ログをコピー</button></div>
 </div>
 
