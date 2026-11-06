@@ -414,7 +414,7 @@ const e=document.getElementById('cpuLevel');const v=e?+e.value:1;return v>=0&&v<
 function beep(f=440,d=0.07){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.value=0.08;o.start();o.stop(AC.currentTime+d);}catch(e){}}
 let S=null;let actId=0;
 // 対局ログ(牌譜)のテキスト化とコピー
-function logText(){const e=document.getElementById('log');return (e&&e.children?e.children:[]).map(d=>d.textContent).join('\n');}
+function logText(){const e=document.getElementById('log');return Array.from(e&&e.children?e.children:[]).map(d=>d.textContent).join('\n');}
 function copyLog(){const tx=logText();const btn=document.getElementById('copyLogBtn');
  const done=ok=>{if(btn){btn.textContent=ok?'✓ コピーしました':'コピーできませんでした';setTimeout(()=>{btn.textContent='📋 ログをコピー';},1800);}};
  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tx).then(()=>done(true),()=>done(false));return;}}catch(e){}
