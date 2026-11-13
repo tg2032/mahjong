@@ -7,11 +7,13 @@ const vm = require('vm');
 
 function makeEl(id) {
   return {
-    id, style: {}, value: '1', children: [], _h: '', textContent: '', firstChild: {}, scrollTop: 0,
+    id, style: {}, value: '1', _c: [], _h: '', textContent: '', firstChild: {}, scrollTop: 0,
     classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} },
-    appendChild(c) { this.children.push(c); },
+    appendChild(c) { this._c.push(c); },
+    // 実ブラウザの HTMLCollection と同様に、配列メソッド(map/filter 等)を持たない配列もどき
+    get children() { const a = this._c, o = { length: a.length, item: i => a[i] || null }; a.forEach((c, i) => { o[i] = c; }); return o; },
     querySelector() { return null; }, querySelectorAll() { return []; },
-    set innerHTML(v) { this._h = v; this.children = []; },
+    set innerHTML(v) { this._h = v; this._c = []; },
     get innerHTML() { return this._h; },
   };
 }
@@ -67,7 +69,7 @@ function loadGame(htmlPath, opts = {}) {
     },
     setLevel(l) { els.cpuLevel = makeEl('cpuLevel'); els.cpuLevel.value = String(l); },
     setHintMode(m) { els.hintMode = makeEl('hintMode'); els.hintMode.value = m; },
-    buttons() { return (els.controls ? els.controls.children : []).filter(b => !b.disabled); },
+    buttons() { return Array.from(els.controls ? els.controls.children : []).filter(b => !b.disabled); },
     findButton(re) { return g.buttons().find(b => re.test(b.textContent || '')); },
     // 何もない状態の局を用意(手牌は配牌のまま。テスト側で上書きする)
     fresh(oya = 0) {

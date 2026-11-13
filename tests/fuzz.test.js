@@ -49,7 +49,7 @@ exports.run = t => {
   const errs = [];
   for (let n = 0; n < GAMES; n++) {
     const r = rules(); g.setLevel(pick([0, 1, 1, 2]));
-    g.timers.length = 0; if (els.log) els.log.children.length = 0; logSeen = 0; G.newGame(Math.floor(Math.random() * 4));
+    g.timers.length = 0; if (els.log) els.log.innerHTML = ''; logSeen = 0; G.newGame(Math.floor(Math.random() * 4));
     let steps = 0, done = false;
     const guard = (label, fn) => { try { fn(); } catch (e) { errs.push(label + ': ' + e.message); done = true; } };
     while (!done && steps++ < 60000) {
