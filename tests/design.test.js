@@ -22,8 +22,9 @@ exports.run = t => {
   // CPUのキャラ設定
   const C = G.CHARA;
   t.ok('キャラ: CPU3人(下家・対面・上家)に名前と説明がある', !C[0] && [1, 2, 3].every(p => C[p].n && C[p].d && C[p].ic));
-  t.ok('キャラ: 台詞がすべての場面で定義されている', [1, 2, 3].every(p => ['riichi', 'pon', 'chi', 'kan', 'tsumo', 'ron', 'dbl', 'ryu'].every(k => C[p].l[k] && C[p].l[k].length >= 1)));
+  t.ok('キャラ: 台詞がすべての場面で定義されている', [1, 2, 3].every(p => ['riichi', 'pon', 'chi', 'kan', 'tsumo', 'ron', 'dbl', 'ryu', 'deal'].every(k => C[p].l[k] && C[p].l[k].length >= 1)));
   t.ok('キャラ: 台詞に内部コード・undefinedが混ざらない', [1, 2, 3].every(p => Object.values(C[p].l).flat().every(x => !/undefined|NaN/.test(x))));
   t.ok('キャラ: 台詞を出しても例外が出ない', (() => { try { [1, 2, 3].forEach(p => G.sayAs(p, 'riichi', 'リーチ')); G.sayAs(0, 'pon', 'ポン'); return true; } catch (e) { return false; } })());
   t.ok('キャラ: 名札はキャラ名(あなたはそのまま)', G.charaName(1).includes(C[1].n) && G.charaName(0) === 'あなた');
+  t.ok('キャラ: 流局の台詞を出しても例外が出ない', (() => { try { for (let k = 0; k < 12; k++) G.sayRyu(); return true; } catch (e) { return false; } })());
 };
