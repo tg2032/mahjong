@@ -417,8 +417,9 @@ let S=null;let actId=0;
 function logText(){const e=document.getElementById('log');return Array.from(e&&e.children?e.children:[]).map(d=>d.textContent).join('\n');}
 function copyLog(){const tx=logText();const btn=document.getElementById('copyLogBtn');
  const done=ok=>{if(btn){btn.textContent=ok?'✓ コピーしました':'コピーできませんでした';setTimeout(()=>{btn.textContent='📋 ログをコピー';},1800);}};
- try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tx).then(()=>done(true),()=>done(false));return;}}catch(e){}
- try{const ta=document.createElement('textarea');ta.value=tx;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();done(ok);}catch(e){done(false);}}
+ const legacy=()=>{try{const ta=document.createElement('textarea');ta.value=tx;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();done(!!ok);}catch(e){done(false);}};
+ try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tx).then(()=>done(true),legacy);return;}}catch(e){}
+ legacy();}
 function log(m){const e=document.getElementById('log');const d=document.createElement('div');d.textContent=m;e.appendChild(d);e.scrollTop=1e9;}
 function countsOf(hand){const c=new Array(34).fill(0);hand.forEach(t=>c[T2I[t]]++);return c;}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
