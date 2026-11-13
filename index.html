@@ -32,6 +32,9 @@ header .sub{font-size:12px;opacity:.85}
 .seat .nm{font-weight:bold;display:flex;justify-content:space-between;flex-wrap:wrap;gap:0 6px;background:rgba(0,0,0,.35);border-radius:6px;padding:2px 6px}
 .seat .nm.act{background:var(--gold);color:#222}
 .seat .nm .wd{color:#ffd54f}.seat .nm.act .wd{color:#b71c1c}
+.bubble{position:fixed;transform:translate(-50%,-50%);background:#fff;color:#222;border:2px solid #333;border-radius:14px;padding:5px 12px;font-size:15px;font-weight:bold;z-index:40;pointer-events:none;box-shadow:0 3px 8px rgba(0,0,0,.4);animation:bub 1.7s ease-out forwards}
+@keyframes bub{0%{opacity:0;transform:translate(-50%,-30%) scale(.8)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.bubble{animation:none}}
 .seat .cnt{font-weight:normal;opacity:.85;margin-right:6px}
 .seat .melds{display:flex;flex-wrap:wrap;gap:3px;min-height:0}
 .seat .rv{position:relative;width:var(--topW);height:calc(4*var(--th) + 3*var(--rg));margin:0 auto}
@@ -366,7 +369,7 @@ let soundOn=true,voiceOn=true;let AC=null;
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 soundOn=lsGet('mj_sound','1')==='1';voiceOn=lsGet('mj_voice','1')==='1';
-function say(t){if(!voiceOn)return;try{const ss=window.speechSynthesis;if(!ss||typeof SpeechSynthesisUtterance==='undefined')return;const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';u.rate=1.1;u.pitch=1.1;ss.speak(u);}catch(e){}}
+function say(t,c){if(!voiceOn)return;try{const ss=window.speechSynthesis;if(!ss||typeof SpeechSynthesisUtterance==='undefined')return;const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';u.rate=(c&&c.rate)||1.1;u.pitch=(c&&c.pitch)||1.1;ss.speak(u);}catch(e){}}
 const RULE_DEFS=[
 {k:'len',l:'対局の長さ',o:[['tonpu','東風戦'],['hanchan','東南戦(半荘)']],d:'tonpu'},
 {k:'ron',l:'ロン',o:[['double','ダブロンあり'],['atama','頭ハネ(先着のみ)']],d:'double'},
@@ -424,6 +427,14 @@ function log(m){const e=document.getElementById('log');const d=document.createEl
 function countsOf(hand){const c=new Array(34).fill(0);hand.forEach(t=>c[T2I[t]]++);return c;}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
 const seatName=p=>['あなた','下家','対面','上家'][p];
+// CPUのキャラ設定(見た目と台詞・声だけ。打ち筋はCPUの強さ設定で決まり、キャラでは変わらない)
+const CHARA=[null,
+{n:'ミオ',ic:'🧡',d:'元気いっぱいの攻め好き。鳴いてガンガン前に出る',pitch:1.6,rate:1.2,l:{riichi:['いくよー!','リーチだよっ!'],pon:['もらうね!'],chi:['いただきっ!'],kan:['カンっ!'],tsumo:['ツモったー!'],ron:['それ、ロン!'],dbl:['ダブロン!?'],ryu:['むー、流局…']}},
+{n:'ゲンさん',ic:'🍵',d:'渋い老練の打ち手。多くを語らず、じっと待つ',pitch:0.6,rate:0.9,l:{riichi:['…リーチだ。','ふむ、リーチ。'],pon:['ほう、貰おうか。'],chi:['いただこう。'],kan:['カンじゃ。'],tsumo:['ツモ。わしの勝ちじゃ。'],ron:['通らば、ロン。'],dbl:['ほっほ、ダブロンか。'],ryu:['流れたか…']}},
+{n:'リン',ic:'💙',d:'クールな理論派。効率と確率で淡々と打つ',pitch:1.15,rate:1.05,l:{riichi:['リーチ。','リーチよ。'],pon:['ポン。'],chi:['チー。'],kan:['カン。'],tsumo:['ツモ。計算どおりね。'],ron:['ロン。効率どおりね。'],dbl:['ダブロン。想定内よ。'],ryu:['流局ね。']}}];
+const charaName=p=>CHARA[p]?CHARA[p].ic+CHARA[p].n:seatName(p);
+function bubble(p,t){try{if(!document.body||!document.createElement)return;const seat=document.getElementById('seat'+p);if(!seat||!seat.getBoundingClientRect)return;const r=seat.getBoundingClientRect();const b=document.createElement('div');b.className='bubble';b.textContent=t;b.style.left=Math.round(r.left+r.width/2)+'px';b.style.top=Math.round(r.top+Math.min(r.height/2,60))+'px';document.body.appendChild(b);setTimeout(()=>{try{b.remove();}catch(e){}},1700);}catch(e){}}
+function sayAs(p,kind,def){const c=CHARA[p];if(!c){say(def);return;}const ls=c.l[kind]||[def];const t=ls[Math.floor(Math.random()*ls.length)];bubble(p,t);say(t,c);}
 // ============ シャンテン・和了 ============
 function normalShanten(cnt,m0=0){let best=8;function rec(i,m,ta,p){while(i<34&&cnt[i]===0)i++;if(i>=34){let t=ta;if(m+t>4)t=4-m;if(m+t>4)t=4-m;best=Math.min(best,8-m*2-t-p);return;}if(p===0&&cnt[i]>=2){cnt[i]-=2;rec(i,m,ta,1);cnt[i]+=2;}if(cnt[i]>=3){cnt[i]-=3;rec(i+1,m+1,ta,p);cnt[i]+=3;}const s=(i/9)|0,n=i%9;if(s<3&&n<=6&&cnt[i]>0&&cnt[i+1]>0&&cnt[i+2]>0){cnt[i]--;cnt[i+1]--;cnt[i+2]--;rec(i,m+1,ta,p);cnt[i]++;cnt[i+1]++;cnt[i+2]++;}if(cnt[i]>=2){cnt[i]-=2;rec(i,m,ta+1,p);cnt[i]+=2;}if(s<3&&n<=7&&cnt[i]>0&&cnt[i+1]>0){cnt[i]--;cnt[i+1]--;rec(i,m,ta+1,p);cnt[i]++;cnt[i+1]++;}if(s<3&&n<=6&&cnt[i]>0&&cnt[i+2]>0){cnt[i]--;cnt[i+2]--;rec(i,m,ta+1,p);cnt[i]++;cnt[i+2]++;}rec(i+1,m,ta,p);}rec(0,m0,0,0);return best;}
 const SH_MEMO=new Map();
@@ -742,7 +753,7 @@ const riv=S.rivers[p].map((t,i)=>{let c='sm';if(S.riichi[p]&&i===S.riichiIdx?.[p
 const meld=S.melds[p].map(m=>`<span style="display:inline-flex;gap:1px;background:rgba(255,255,255,.85);border-radius:4px;padding:2px">${m.tiles.map(t=>tileHTML(t,'sm')).join('')}</span>`).join('');
 el.className='seat'+(p===0?' me':'');
 const cnt=p===0?'':`<span class="cnt">手牌${S.hands[p].length}枚</span>`;
-el.innerHTML=`<div class="nm${(p===S.turn&&!S.over)?' act':''}"><span>${seatName(p)} <b class="wd">${windName(p)}家</b>${p===S.oya?' [親]':''} ${S.riichi[p]?'★R':''}</span><span>${cnt}${S.scores[p]}</span></div><div class="melds">${meld}</div><div class="rv"><div class="rv-in"><div class="river">${riv}</div></div></div>`;}
+el.innerHTML=`<div class="nm${(p===S.turn&&!S.over)?' act':''}"><span title="${CHARA[p]?CHARA[p].d:''}">${charaName(p)} <b class="wd">${windName(p)}家</b>${p===S.oya?' [親]':''} ${S.riichi[p]?'★R':''}</span><span>${cnt}${S.scores[p]}</span></div><div class="melds">${meld}</div><div class="rv"><div class="rv-in"><div class="river">${riv}</div></div></div>`;}
 // 手牌
 const h=document.getElementById('hand');h.innerHTML='';
 S.hands[0].forEach((t,i)=>{const w=document.createElement('span');w.innerHTML=tileHTML(t,(i===S.drawnIdx?'draw':'')+((S.turn===0&&isKuikae(0,t))?' nogo':''));if(i===S.drawnIdx&&i>0)w.style.marginLeft='16px';w.firstChild.onclick=e=>onTileTap(i,e);h.appendChild(w);});
@@ -840,7 +851,7 @@ S.melds[p].push({type:'ankan',tiles:taken,closed:true});
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
 const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHand(h);h.push(rin);S.drawn=rin;S.drawnIdx=h.length-1;}
-say('カン');log(`${seatName(p)}: 暗槓 ${tName(base)} → 嶺上`);render();
+sayAs(p,'kan','カン');log(`${seatName(p)}: 暗槓 ${tName(base)} → 嶺上`);render();
 afterRinshan(p);}
 // ---- 捨牌共通 ----
 // isRiichiDecl: リーチ宣言牌の打牌(一発成立)。それ以外でリーチ者が打牌したら一発消滅
@@ -938,14 +949,14 @@ function doPon(p,from,tile){
 S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];const b=baseOf(tile);
 const taken=[];for(let i=h.length-1;i>=0&&taken.length<2;i--){if(baseOf(h[i])===b){taken.push(h.splice(i,1)[0]);}}
 S.melds[p].push({type:'pon',tiles:[...taken, tile].map(x=>x),closed:false});setPao(p,from);
-S.kuikae={p,set:kuikaeSet('pon',tile)};say('ポン');log(`${seatName(p)}: ポン ${tName(b)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();beep(500,0.06);
+S.kuikae={p,set:kuikaeSet('pon',tile)};sayAs(p,'pon','ポン');log(`${seatName(p)}: ポン ${tName(b)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();beep(500,0.06);
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='ポン: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doChi(p,from,tile,opt){
 S.rivers[from].pop();S.called[from]=true;const h=S.hands[p];
 const taken=opt.map(b=>{const i=h.map(baseOf).indexOf(b);return i>=0?h.splice(i,1)[0]:b;});
 S.melds[p].push({type:'chi',tiles:[...taken,tile].sort((a,b)=>T2I[a]-T2I[b]),closed:false});
-S.kuikae={p,set:kuikaeSet('chi',tile,opt)};say('チー');log(`${seatName(p)}: チー ${opt.map(tName).join('・')} + ${tName(tile)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();
+S.kuikae={p,set:kuikaeSet('chi',tile,opt)};sayAs(p,'chi','チー');log(`${seatName(p)}: チー ${opt.map(tName).join('・')} + ${tName(tile)}`);S.turn=p;S.waiting=false;S.drawn=null;S.drawnIdx=-1;render();
 if(p===0){setControls([]);document.getElementById('turnInfo').textContent='チー: 捨てる牌をクリック';}
 else setTimeout(aiDiscard.bind(null,p,false),600);}
 function doMinkan(p,from,tile){
@@ -956,7 +967,7 @@ S.melds[p].push({type:'kan',tiles:[...taken, tile],closed:false});setPao(p,from)
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
 const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHand(h);h.push(rin);S.drawn=rin;S.drawnIdx=h.length-1;}
-say('カン');log(`${seatName(p)}: 大明槓`);S.turn=p;S.waiting=false;render();
+sayAs(p,'kan','カン');log(`${seatName(p)}: 大明槓`);S.turn=p;S.waiting=false;render();
 afterRinshan(p);}
 function afterRinshan(p){
 const h=S.hands[p];
@@ -999,7 +1010,7 @@ const m=S.melds[p][mi];S.melds[p][mi]={type:'kan',tiles:[...m.tiles,tile],closed
 S.kanCount++;S.doraInd.push(S.dead[4+S.kanCount*2]);S.ura.push(S.dead[5+S.kanCount*2]);
 S.ippatsu=[false,false,false,false];
 const rin=S.rinTiles.shift();h.push(rin);S.rinshan=true;if(p===0){h.pop();sortHand(h);h.push(rin);S.drawn=rin;S.drawnIdx=h.length-1;}
-say('カン');S.turn=p;S.waiting=false;render();
+sayAs(p,'kan','カン');S.turn=p;S.waiting=false;render();
 afterRinshan(p);}
 // ---- AI ----
 function aiPonRate(p,tile){return Math.min(0.95,aiPonRateBase(p,tile)*[0.5,1,1.3][LV(p)]);}
@@ -1027,7 +1038,7 @@ setTimeout(()=>aiDiscard(p,wantRiichi),520);}
 function aiRiichiDiscard(p,idx){
 const t=S.hands[p][idx];S.hands[p].splice(idx,1);
 S.scores[p]-=1000;S.kyotaku++;S.riichi[p]=true;S.ippatsu[p]=true;S.riichiIdx=S.riichiIdx||{};S.riichiIdx[p]=S.rivers[p].length;S.dblRiichi[p]=S.rivers[p].length===0&&S.melds.every(m=>m.length===0);
-S.rivers[p].push(t);(S.dlog||(S.dlog=[])).push({p,t:baseOf(t)});S.riichiAt[p]=S.dlog.length;S.drawn=null;S.drawnIdx=-1;S.rinshan=false;say('リーチ');log(`${seatName(p)}: リーチ!`);render({from:p});beep(500,0.08);
+S.rivers[p].push(t);(S.dlog||(S.dlog=[])).push({p,t:baseOf(t)});S.riichiAt[p]=S.dlog.length;S.drawn=null;S.drawnIdx=-1;S.rinshan=false;sayAs(p,'riichi','リーチ');log(`${seatName(p)}: リーチ!`);render({from:p});beep(500,0.08);
 afterDiscard(p,t);}
 function dangerOf(t,p){
 // 他家リーチ者への危険度: 現物なら0、筋・字牌なら低
@@ -1141,7 +1152,7 @@ if(pa){const total=(dealer?sc.all*3:sc.dealer+sc.child*2)+S.honba*300;S.scores[p
 else if(dealer){gain=sc.all*3+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=sc.all+S.honba*100;}S.scores[p]+=gain;}
 else{gain=sc.dealer+sc.child*2+S.kyotaku*1000+S.honba*300;for(let i=0;i<4;i++){if(i===p)continue;S.scores[i]-=((i===S.oya?sc.dealer:sc.child)+S.honba*100);}S.scores[p]+=gain;}
 beep(880,0.2);setTimeout(()=>beep(1320,0.25),150);
-say('ツモ');log(`🎉 ${seatName(p)} ツモ ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain}`);
+sayAs(p,'tsumo','ツモ');log(`🎉 ${seatName(p)} ツモ ${info.yaku.map(r=>r[0]+r[1]).join(' ')} ${info.han}翻${info.fu}符 +${gain}`);
 render();
 showResult(`${seatName(p)} ツモ!`,S.hands[p],S.melds[p],info.yaku,`${info.han}翻 ${info.fu}符 +${gain}点 (本場${S.honba} 供託${S.kyotaku})${pa?`
 責任払い: ${seatName(pa.q)}が全額負担`:''}`,()=>nextKyoku(p===S.oya),doraExtra(p));}
@@ -1164,7 +1175,7 @@ infos.forEach(({p,hand,info})=>{
  S.scores[p]+=base+bonus;
  res.push({p,hand,info,gain:base+bonus,pao:split?pa.q:null});first=false;});
 beep(880,0.2);
-say(res.length>1?'ダブロン':'ロン');
+sayAs(res[0].p,res.length>1?'dbl':'ron',res.length>1?'ダブロン':'ロン');
 res.forEach(r=>log(`🎉 ${seatName(r.p)} ロン ${r.info.yaku.map(y=>y[0]+y[1]).join(' ')} ${r.info.han}翻${r.info.fu}符 +${r.gain} 放銃:${seatName(from)}`));
 render();
 const oyaWin=res.some(r=>r.p===S.oya);

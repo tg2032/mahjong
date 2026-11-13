@@ -19,4 +19,11 @@ exports.run = t => {
   t.ok('対局ログ: 対局開始と親が記録される', /対局開始/.test(lt) && /親:/.test(lt));
   t.ok('対局ログ: 1行1出来事で改行区切り', lt.split('\n').length >= 2);
   t.ok('対局ログに内部コードが漏れない', !/(^|[^A-Za-z0-9_])[mpsz][0-9](?![A-Za-z0-9_])/.test(lt));
+  // CPUのキャラ設定
+  const C = G.CHARA;
+  t.ok('キャラ: CPU3人(下家・対面・上家)に名前と説明がある', !C[0] && [1, 2, 3].every(p => C[p].n && C[p].d && C[p].ic));
+  t.ok('キャラ: 台詞がすべての場面で定義されている', [1, 2, 3].every(p => ['riichi', 'pon', 'chi', 'kan', 'tsumo', 'ron', 'dbl', 'ryu'].every(k => C[p].l[k] && C[p].l[k].length >= 1)));
+  t.ok('キャラ: 台詞に内部コード・undefinedが混ざらない', [1, 2, 3].every(p => Object.values(C[p].l).flat().every(x => !/undefined|NaN/.test(x))));
+  t.ok('キャラ: 台詞を出しても例外が出ない', (() => { try { [1, 2, 3].forEach(p => G.sayAs(p, 'riichi', 'リーチ')); G.sayAs(0, 'pon', 'ポン'); return true; } catch (e) { return false; } })());
+  t.ok('キャラ: 名札はキャラ名(あなたはそのまま)', G.charaName(1).includes(C[1].n) && G.charaName(0) === 'あなた');
 };
