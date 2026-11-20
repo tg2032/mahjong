@@ -11,7 +11,7 @@ function makeEl(id) {
     classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} },
     appendChild(c) { this._c.push(c); },
     // 実ブラウザの HTMLCollection と同様に、配列メソッド(map/filter 等)を持たない配列もどき
-    get children() { const a = this._c, o = { length: a.length, item: i => a[i] || null }; a.forEach((c, i) => { o[i] = c; }); return o; },
+    get children() { const a = this._c; return new Proxy({}, { get: (_, k) => (k === 'length' ? a.length : k === 'item' ? (i => a[i] || null) : (typeof k === 'string' && /^[0-9]+$/.test(k) ? a[+k] : undefined)) }); },
     querySelector() { return null; }, querySelectorAll() { return []; },
     set innerHTML(v) { this._h = v; this._c = []; },
     get innerHTML() { return this._h; },

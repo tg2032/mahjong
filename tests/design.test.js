@@ -27,4 +27,10 @@ exports.run = t => {
   t.ok('キャラ: 台詞を出しても例外が出ない', (() => { try { [1, 2, 3].forEach(p => G.sayAs(p, 'riichi', 'リーチ')); G.sayAs(0, 'pon', 'ポン'); return true; } catch (e) { return false; } })());
   t.ok('キャラ: 名札はキャラ名(あなたはそのまま)', G.charaName(1).includes(C[1].n) && G.charaName(0) === 'あなた');
   t.ok('キャラ: 流局の台詞を出しても例外が出ない', (() => { try { for (let k = 0; k < 12; k++) G.sayRyu(); return true; } catch (e) { return false; } })());
+  // レビュー指摘の修正
+  g.els.log.innerHTML = ''; g.els.copyLogBtn = g.els.copyLogBtn || g.els.log; G.copyLog();
+  t.eq('コピー: ログが空なら「ログがありません」', g.els.copyLogBtn.textContent, 'ログがありません');
+  t.ok('呼び名: CPUはキャラ名と席の両方、あなたはそのまま', G.seatName(0) === 'あなた' && [1, 2, 3].every(p => G.seatName(p).includes(C[p].n) && /(下家|対面|上家)/.test(G.seatName(p))));
+  t.ok('擬似環境: childrenは配列メソッドを持たない(実ブラウザと同じ)', typeof g.els.log.children.map === 'undefined' && typeof g.els.log.children.length === 'number');
+  t.ok('状況表示は読み上げ対象にしない(操作ボタン側で通知)', !/id="turnInfo"[^>]*aria-live/.test(html) && /id="controls"[^>]*aria-live/.test(html));
 };
