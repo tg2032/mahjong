@@ -18,7 +18,7 @@ function makeEl(id) {
   };
 }
 
-const RULE_KEYS = ['len', 'ron', 'renhou', 'allLast', 'extend', 'dbl', 'kiriage', 'pao', 'tobi', 'aka', 'kuikae', 'nagashi', 'abortive'];
+const RULE_KEYS = ['len', 'ron', 'renhou', 'allLast', 'extend', 'dbl', 'kiriage', 'pao', 'tobi', 'aka', 'kuikae', 'nagashi', 'abortive', 'trick'];
 
 function loadGame(htmlPath, opts = {}) {
   const file = htmlPath || process.env.MAHJONG_HTML || path.join(__dirname, '..', '..', 'index.html');
