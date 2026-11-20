@@ -15,6 +15,10 @@ exports.run = t => {
   const myTurn = () => { const S = g.fresh(0); S.turn = 0; S.drawnIdx = S.hands[0].length - 1; S.drawn = S.hands[0][S.drawnIdx]; return S; };
   const labels = () => g.buttons().map(b => b.textContent);
 
+  // ルール要約
+  g.setRules({ trick: 'on' }); t.ok('裏技: ルール要約に「裏技:あり」', /裏技:あり/.test(G.ruleSummaryText(G.readRules())));
+  g.setRules({ trick: 'off' }); t.ok('裏技: ルール要約に「裏技:なし」', /裏技:なし/.test(G.ruleSummaryText(G.readRules())));
+
   // ボタンの出現
   g.setRules({ trick: 'on' }); let S = myTurn(); G.refreshPlayerButtons();
   t.ok('裏技: 自分の手番に3つのボタンが出る', ['透視', '裏ドラ', 'ツモ直し'].every(k => labels().some(l => l.includes(k))));
