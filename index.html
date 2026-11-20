@@ -393,7 +393,7 @@ function readRules(){const r={};RULE_DEFS.forEach(d=>{const e=(typeof document!=
 function R(){return(S&&S.rules)||readRules();}
 function RON_RULE(){return R().ron==='atama'?'atama':'double';}
 function ruleSummaryText(r){const lab=k=>{const d=RULE_DEFS.find(x=>x.k===k);return d.o.find(o=>o[0]===r[k])[1];};
- return `${lab('len')} / ${lab('ron')} / 人和:${lab('renhou')} / オーラス:${lab('allLast')} / トビ:${lab('tobi')}`;}
+ return `${lab('len')} / ${lab('ron')} / 人和:${lab('renhou')} / オーラス:${lab('allLast')} / トビ:${lab('tobi')} / 裏技:${lab('trick')}`;}
 function updateRuleSummary(){const e=document.getElementById('ruleSummary');if(e)e.textContent=ruleSummaryText(readRules());}
 function initRules(){
 const list=document.getElementById('ruleList');if(!list||!list.querySelectorAll)return;
