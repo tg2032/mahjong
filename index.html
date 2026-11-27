@@ -831,7 +831,7 @@ function trickUra(){if(!S||S.over||S.turn!==0||S.uraPeeked||S.tricks.ura<=0)retu
  say('裏ドラ');refreshPlayerButtons();}
 function trickSwap(){if(!S||S.over||S.turn!==0||S.tricks.swap<=0||S.drawnIdx<0||S.wall.length<=8)return;S.tricks.swap--;
  if(Math.random()<0.3){trickBusted();return;}
- const i=S.drawnIdx,old=S.hands[0][i],nt=S.wall.pop();S.hands[0][i]=nt;S.drawn=nt;
+ const i=S.drawnIdx,old=S.hands[0][i],nt=S.wall.pop();S.hands[0][i]=nt;S.drawn=nt;S.rinshan=false; // 引き直した牌は嶺上牌ではない
  S.wall.splice(Math.floor(Math.random()*(S.wall.length+1)),0,old); // 戻した牌は山のどこかに混ざる
  log('🎴 ツモ直し: 引き直した(気づかれなかった)');say('ツモ直し');setCand([],[]);S.sel=null;render();refreshPlayerButtons();}
 function trickBusted(){S.over=true;setControls([]);setCand([],[]);

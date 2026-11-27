@@ -45,6 +45,9 @@ exports.run = t => {
     Math.random = () => 0.9; G.refreshPlayerButtons(); g.findButton(/ツモ直し/).onclick();
     t.ok('ツモ直し(成功): ツモ牌が山の次の牌に替わる', S.hands[0][S.drawnIdx] === top && S.drawn === top && S.wall.length === wl && S.tricks.swap === 1);
     t.ok('ツモ直し(成功): 元のツモ牌は山に戻り、牌の総数が保たれる', S.wall.includes(before) && total(S) && !S.over);
+    // 嶺上牌を引き直したら嶺上開花は付かない
+    S = myTurn(); S.rinshan = true; Math.random = () => 0.9; G.trickSwap();
+    t.ok('ツモ直し(嶺上): 引き直すと嶺上開花の扱いが消える', S.rinshan === false);
     // 発覚時
     S = myTurn(); Math.random = () => 0.1; G.refreshPlayerButtons(); g.findButton(/ツモ直し/).onclick();
     t.ok('ツモ直し(発覚): 罰符で-3000/+1000ずつ、点数の総和は保存', S.over && S.scores[0] === 22000 && S.scores.slice(1).every(x => x === 26000) && S.scores.reduce((a, b) => a + b, 0) === 100000);
