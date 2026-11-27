@@ -22,6 +22,10 @@ exports.run = t => {
   g.setRules({ trick: 'on' }); t.ok('裏技: ルール要約に「裏技:あり」', /裏技:あり/.test(G.ruleSummaryText(G.readRules())));
   g.setRules({ trick: 'off' }); t.ok('裏技: ルール要約に「裏技:なし」', /裏技:なし/.test(G.ruleSummaryText(G.readRules())));
 
+  // 遊び方の説明が、全部の裏技と回数に追いついている
+  const help = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8').split('id="helpModal"')[1].split('<script')[0];
+  t.ok('裏技: 遊び方に7種類すべての説明がある', ['透視', '裏ドラを見る', '山読み', 'お守り', 'ツモ直し', '引き寄せ', 'ドラすり替え'].every(n => help.includes(n)));
+
   // ボタンの出現
   g.setRules({ trick: 'on' }); let S = myTurn(); G.refreshPlayerButtons();
   t.ok('裏技: 手番には「裏技」ボタン1つにまとまる', labels().filter(l => l.includes('裏技')).length === 1 && !labels().some(l => l.includes('透視')));
