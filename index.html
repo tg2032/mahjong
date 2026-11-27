@@ -387,7 +387,7 @@ const RULE_DEFS=[
 {k:'kuikae',l:'喰い替え禁止',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'nagashi',l:'流し満貫',o:[['on','あり'],['off','なし']],d:'on'},
 {k:'abortive',l:'途中流局(九種九牌・四風連打・四家立直・四槓散了)',o:[['on','あり'],['off','なし']],d:'on'},
-{k:'trick',l:'裏技(透視・裏ドラ見・ツモ直し)',o:[['on','あり'],['off','なし']],d:'on'}
+{k:'trick',l:'裏技(透視・ツモ直しなど7種類)',o:[['on','あり'],['off','なし']],d:'on'}
 ];
 function readRules(){const r={};RULE_DEFS.forEach(d=>{const e=(typeof document!=='undefined')?document.getElementById('rule_'+d.k):null;const v=e?e.value:d.d;r[d.k]=d.o.some(o=>o[0]===v)?v:d.d;});return r;}
 function R(){return(S&&S.rules)||readRules();}
@@ -713,7 +713,7 @@ function rollTwoDice(){return[1+((Math.random()*6)|0),1+((Math.random()*6)|0)];}
 function oyaFromDice(sum){return(sum-1)%4;}
 function newGame(oya){
 if(oya===undefined){const d=rollTwoDice();oya=oyaFromDice(d[0]+d[1]);}
-const rules=readRules();S={scores:[25000,25000,25000,25000],round:0,rounds:rules.len==='hanchan'?8:4,baseRounds:rules.len==='hanchan'?8:4,rules,honba:0,kyotaku:0,oya,tricks:{peek:2,ura:2,swap:2}};log(`対局開始: ${S.rounds>4?'東南戦(半荘)':'東風戦'} / 親:${seatName(oya)} / CPU:${['弱い','普通','強い'][LV()]}`);startKyoku();}
+const rules=readRules();S={scores:[25000,25000,25000,25000],round:0,rounds:rules.len==='hanchan'?8:4,baseRounds:rules.len==='hanchan'?8:4,rules,honba:0,kyotaku:0,oya,tricks:sanitizeTricks()};log(`対局開始: ${S.rounds>4?'東南戦(半荘)':'東風戦'} / 親:${seatName(oya)} / CPU:${['弱い','普通','強い'][LV()]}`);startKyoku();}
 function openDiceModal(){
 const faces=document.getElementById('diceFaces'),txt=document.getElementById('diceText'),btn=document.getElementById('diceBtn');
 let phase='ready',oya=0,timer=null;
@@ -730,7 +730,7 @@ btn.onclick=()=>{
 };}
 function startKyoku(){saveProgress();actId++;const myAct=actId;
 const wall=buildWall();const dead=wall.splice(0,14);
-S.peek=false;S.uraPeeked=false;S.wall=wall;S.dead=dead;S.rinTiles=dead.slice(0,4);S.doraInd=[dead[4]];S.ura=[dead[5]];S.kanCount=0;
+S.peek=false;S.uraPeeked=false;S.yamaSeen=false;S.lucky=false;S.guard=false;S.wall=wall;S.dead=dead;S.rinTiles=dead.slice(0,4);S.doraInd=[dead[4]];S.ura=[dead[5]];S.kanCount=0;
 S.hands=[[],[],[],[]];for(let i=0;i<13;i++)for(let p=0;p<4;p++)S.hands[(S.oya+p)%4].push(S.wall.pop());
 S.hands[S.oya].push(S.wall.pop());
 S.rivers=[[],[],[],[]];S.melds=[[],[],[],[]];S.riichi=[false,false,false,false];S.ippatsu=[false,false,false,false];S.furitenTemp=[false,false,false,false];S.furitenPerm=[false,false,false,false];S.riichiIdx={};
@@ -790,6 +790,7 @@ c.appendChild(btn);});setCand([...all],[]);}
 function playerDraw(isRinshan){
 if(S.over||S.turn!==0)return;
 if(S.wall.length===0){ryukyoku();return;}
+if(S.lucky&&!isRinshan&&S.hands[0].length!==14)applyLucky();
 let t;if(S.hands[0].length===14&&!isRinshan){t=S.hands[0][S.hands[0].length-1];}
 else{t=S.wall.pop();S.hands[0].push(t);if(isRinshan)S.rinshan=true;}
 S.sel=null;S.drawn=t;S.furitenTemp[0]=false;{const h0=S.hands[0];const d0=h0.pop();sortHand(h0);h0.push(d0);S.drawnIdx=h0.length-1;}
@@ -814,26 +815,66 @@ kakanList(0).forEach(k=>btns.push({label:`加槓 ${tName(k.b)}`,cls:'blue',hl:[k
 const kc=kanTiles(0).filter(t=>!S.riichi[0]||riichiAnkanOK(0,baseOf(t)));
 if(kc.length&&S.rinTiles.length>0&&S.kanCount<4)btns.push({label:`カン ${tName(kc[0])}`,cls:'blue',hl:handIdx([baseOf(kc[0]),baseOf(kc[0]),baseOf(kc[0]),baseOf(kc[0])],false),onClick:()=>{setCand([],[]);doAnkan(0,kc[0]);}});
 if(!S.riichi[0]&&isClosed(0)&&S.scores[0]>=1000&&S.wall.length>4&&canRiichi(0))btns.push({label:'リーチ',cls:'red',hl:riichiIdx(),onClick:enterRiichi});
-if(R().trick!=='off'&&S.tricks&&!S.riichiWait)trickButtons().forEach(b=>btns.push(b));
+if(R().trick!=='off'&&S.tricks&&!S.riichiWait&&trickButtons().length)btns.push({label:'🃏 裏技',cls:'dark',onClick:openTricks});
 if(btns.length)setControls([...btns]);else setControls([]);
 }
 // ---- 裏技 ----
-// 透視: 次に打牌するまで、他家の手牌が見える / 裏ドラ見: 裏ドラ表示牌を見る(局に1回) / ツモ直し: ツモ牌を山に戻して引き直す(イカサマ。3割で発覚)
+// 情報系(発覚なし) — 透視: 次の打牌まで他家の手牌が見える / 裏ドラ見: 裏ドラ表示牌を見る(局に1回) / 山読み: この先の4枚を見る
+// お守り(発覚なし) — 次の打牌はロンされない
+// イカサマ(3割で発覚) — ツモ直し: ツモ牌を引き直す / 引き寄せ: 次のツモを有効牌にする / ドラすり替え: ドラ表示牌を自分に有利な牌と入れ替える
+const TRICK_MAX={peek:2,ura:2,yama:2,guard:1,swap:2,lucky:2,dora:1};
 function trickButtons(){const T=S.tricks,b=[];if(S.turn!==0||S.over||S.hands[0].length%3!==2)return b;
- if(T.peek>0&&!S.peek)b.push({label:`👁 透視(残${T.peek})`,cls:'dark',onClick:trickPeek});
- if(T.ura>0&&!S.uraPeeked)b.push({label:`🔮 裏ドラを見る(残${T.ura})`,cls:'dark',onClick:trickUra});
- if(T.swap>0&&S.drawnIdx>=0&&S.wall.length>8)b.push({label:`🎴 ツモ直し(残${T.swap}・発覚3割)`,cls:'red',onClick:trickSwap});
+ const add=(ok,k,label,fn,cheat)=>{if(T[k]>0&&ok)b.push({label:`${label}(残${T[k]}${cheat?'・発覚3割':''})`,cls:cheat?'red':'dark',onClick:fn});};
+ add(!S.peek,'peek','👁 透視',trickPeek);
+ add(!S.uraPeeked,'ura','🔮 裏ドラを見る',trickUra);
+ add(!S.yamaSeen&&S.wall.length>0,'yama','🔭 山読み',trickYama);
+ add(!S.guard,'guard','🛡 お守り',trickGuard);
+ add(S.drawnIdx>=0&&S.wall.length>8,'swap','🎴 ツモ直し',trickSwap,true);
+ add(!S.lucky&&S.wall.length>4,'lucky','🧲 引き寄せ',trickLucky,true);
+ add(!!bestDoraSwap(),'dora','💎 ドラすり替え',trickDora,true);
  return b;}
-function trickPeek(){if(!S||S.over||S.turn!==0||S.peek||S.tricks.peek<=0)return;S.tricks.peek--;S.peek=true;log('👁 透視: 他家の手牌を見た');say('透視');render();refreshPlayerButtons();}
-function trickUra(){if(!S||S.over||S.turn!==0||S.uraPeeked||S.tricks.ura<=0)return;S.tricks.ura--;S.uraPeeked=true;
+function openTricks(){if(!S||S.over||S.turn!==0||S.riichiWait)return;setControls([...trickButtons(),{label:'◀ 戻る',cls:'dark',onClick:refreshPlayerButtons}]);}
+function canTrick(k){return !!S&&!S.over&&S.turn===0&&!S.riichiWait&&S.tricks[k]>0;}
+function trickBox(title,tiles){const box=document.getElementById('hintBox');if(box){box.style.display='';box.innerHTML=`<b>${title}</b><div style="margin-top:4px">${tiles}</div>`;}}
+function trickPeek(){if(!canTrick('peek')||S.peek)return;S.tricks.peek--;S.peek=true;log('👁 透視: 他家の手牌を見た');say('透視');render();refreshPlayerButtons();}
+function trickUra(){if(!canTrick('ura')||S.uraPeeked)return;S.tricks.ura--;S.uraPeeked=true;
  const us=S.ura.slice(0,S.kanCount+1);log('🔮 裏ドラ表示牌: '+us.map(tName).join('・'));
- const box=document.getElementById('hintBox');if(box){box.style.display='';box.innerHTML='<b>🔮 裏ドラ表示牌(リーチ和了のときだけ有効)</b><div style="margin-top:4px">'+us.map(x=>tileHTML(x,'sm')).join('')+'</div>';}
- say('裏ドラ');refreshPlayerButtons();}
-function trickSwap(){if(!S||S.over||S.turn!==0||S.tricks.swap<=0||S.drawnIdx<0||S.wall.length<=8)return;S.tricks.swap--;
- if(Math.random()<0.3){trickBusted();return;}
+ say('裏ドラ');refreshPlayerButtons(); // ボタンの作り直しは表示欄を閉じるので、表示はその後
+ trickBox('🔮 裏ドラ表示牌(リーチ和了のときだけ有効)',us.map(x=>tileHTML(x,'sm')).join(''));}
+function trickYama(){if(!canTrick('yama')||S.yamaSeen||!S.wall.length)return;S.tricks.yama--;S.yamaSeen=true;
+ const next=S.wall.slice(-4).reverse(),who=next.map((x,i)=>seatName((i+1)%4));
+ log('🔭 山読み: '+next.map((x,i)=>who[i]+'='+tName(x)).join(' / '));
+ say('山読み');refreshPlayerButtons();
+ trickBox('🔭 この先のツモ(鳴き・カンがなければ)',next.map((x,i)=>`<span style="display:inline-block;text-align:center;margin-right:8px">${tileHTML(x,'sm')}<br><small>${who[i]}</small></span>`).join(''));}
+function trickGuard(){if(!canTrick('guard')||S.guard)return;S.tricks.guard--;S.guard=true;log('🛡 お守り: 次の打牌はロンされない');say('お守り');refreshPlayerButtons();}
+// イカサマ系の共通処理: 3割で発覚して局が終わる
+function cheatCaught(){if(Math.random()<0.3){trickBusted();return true;}return false;}
+function trickSwap(){if(!canTrick('swap')||S.drawnIdx<0||S.wall.length<=8)return;S.tricks.swap--;
+ if(cheatCaught())return;
  const i=S.drawnIdx,old=S.hands[0][i],nt=S.wall.pop();S.hands[0][i]=nt;S.drawn=nt;S.rinshan=false; // 引き直した牌は嶺上牌ではない
  S.wall.splice(Math.floor(Math.random()*(S.wall.length+1)),0,old); // 戻した牌は山のどこかに混ざる
  log('🎴 ツモ直し: 引き直した(気づかれなかった)');say('ツモ直し');setCand([],[]);S.sel=null;render();refreshPlayerButtons();}
+function trickLucky(){if(!canTrick('lucky')||S.lucky||S.wall.length<=4)return;S.tricks.lucky--;
+ if(cheatCaught())return;
+ S.lucky=true;log('🧲 引き寄せ: 次のツモに仕込んだ(気づかれなかった)');say('引き寄せ');refreshPlayerButtons();}
+// 次のツモの直前に、和了牌(なければ向聴数が進む牌)を山の一番上へ移す
+function applyLucky(){S.lucky=false;const h=S.hands[0],m=S.melds[0].length,cur=shantenAll(h,m);
+ const idx=S.wall.map((x,i)=>i);
+ let c=idx.filter(i=>isAgari(h.concat([S.wall[i]])));
+ if(!c.length)c=idx.filter(i=>shantenAll(h.concat([S.wall[i]]),m)<cur);
+ if(!c.length){log('🧲 引き寄せ: 山に有効牌がなかった');return;}
+ const t=S.wall.splice(c[Math.floor(Math.random()*c.length)],1)[0];S.wall.push(t);}
+// 最初のドラ表示牌と入れ替えると手牌のドラが一番増える、山の牌を探す(増えないなら null)
+function bestDoraSwap(){if(!S.dead||!S.wall.length)return null;
+ const mine=S.hands[0].concat(S.melds[0].flatMap(m=>m.tiles)).map(baseOf);
+ const count=ind=>{const d=baseOf(nextIndicator(ind));return mine.filter(t=>t===d).length;};
+ let best=null,n=count(S.doraInd[0]);
+ S.wall.forEach((x,i)=>{const c=count(x);if(c>n){n=c;best={i};}});
+ return best;}
+function trickDora(){if(!canTrick('dora'))return;const sw=bestDoraSwap();if(!sw)return;S.tricks.dora--;
+ if(cheatCaught())return;
+ const ni=S.wall[sw.i];S.wall[sw.i]=S.doraInd[0];S.doraInd[0]=ni;S.dead[4]=ni;
+ log(`💎 ドラすり替え: 表示牌を${tName(ni)}に入れ替えた(気づかれなかった)`);say('ドラすり替え');render();refreshPlayerButtons();}
 function trickBusted(){S.over=true;setControls([]);setCand([],[]);
  S.scores[0]-=3000;for(let i=1;i<4;i++)S.scores[i]+=1000;
  sayAs(1+Math.floor(Math.random()*3),'bust','発覚');log('🚨 イカサマ発覚! 罰符 あなた-3000点(他家へ1000点ずつ)');render();
@@ -869,7 +910,7 @@ if(shantenAll(tmp,S.melds[0].length)!==0){
  setControls([{label:'リーチ取消',cls:'dark',onClick:()=>{S.riichiWait=false;refreshPlayerButtons();document.getElementById('turnInfo').textContent='あなたのツモ番: 捨てる牌をクリック';}}]);
  return;
 }
-S.riichiWait=false;setCand([],[]);S.sel=null;
+S.riichiWait=false;setCand([],[]);S.sel=null;S.peek=false;S.yamaSeen=false;S.rinshan=false;
 const t=h[idx];h.splice(idx,1);sortHand(h);
 S.scores[0]-=1000;S.kyotaku++;S.riichi[0]=true;S.ippatsu[0]=true;S.riichiIdx=S.riichiIdx||{};S.riichiIdx[0]=S.rivers[0].length;S.dblRiichi[0]=S.rivers[0].length===0&&S.melds.every(m=>m.length===0);
 S.rivers[0].push(t);(S.dlog||(S.dlog=[])).push({p:0,t:baseOf(t)});S.riichiAt[0]=S.dlog.length;S.drawn=null;S.drawnIdx=-1;say('リーチ');log(`あなた: リーチ! → ${tName(t)}`);beep(880,0.12);render();afterDiscard(0,t);}
@@ -888,7 +929,7 @@ afterRinshan(p);}
 // ---- 捨牌共通 ----
 // isRiichiDecl: リーチ宣言牌の打牌(一発成立)。それ以外でリーチ者が打牌したら一発消滅
 function doDiscard(p,idx,isRiichiCut,isRiichiDecl=false){
-if(p===0){setCand([],[]);S.sel=null;S.peek=false;}S.kuikae=null;const t=S.hands[p][idx];S.hands[p].splice(idx,1);if(p===0)sortHand(S.hands[0]);S.rivers[p].push(t);(S.dlog||(S.dlog=[])).push({p,t:baseOf(t)});S.drawn=null;S.drawnIdx=-1;S.rinshan=false;
+if(p===0){setCand([],[]);S.sel=null;S.peek=false;S.yamaSeen=false;}S.kuikae=null;const t=S.hands[p][idx];S.hands[p].splice(idx,1);if(p===0)sortHand(S.hands[0]);S.rivers[p].push(t);(S.dlog||(S.dlog=[])).push({p,t:baseOf(t)});S.drawn=null;S.drawnIdx=-1;S.rinshan=false;
 if(isRiichiDecl){S.ippatsu[p]=true;}
 else if(S.riichi[p]){S.ippatsu[p]=false;}
 log(`${seatName(p)}: 切 ${tName(t)}${isAka(t)?'(赤)':''}`);render({from:p});beep(300,0.04);
@@ -929,7 +970,8 @@ S.over=true;setControls([]);log('三家和了: 流局(親は連荘)');render();
 showResult('三家和 流局',[],[],[['三人が同じ牌でロン','']],'流局(親は連荘・供託は持越し)',()=>nextKyoku(true,true));}
 function afterDiscard(from,tile){
 if(S.over)return;const myAct=actId;
-const order=ronWinners(from,tile);
+let order=ronWinners(from,tile);
+if(from===0&&S.guard){S.guard=false;if(order.length){log('🛡 お守り: ロンを防いだ');say('お守り');order=[];}}
 if(order.length>=3){sanchaho();return;}
 if(order.length===0&&isSuufuurenda()){abortDraw('四風連打 流局','四人が同じ風牌を捨てました');return;}
 if(order.length===0&&isSuuchaRiichi()){abortDraw('四家立直 流局','四人全員がリーチしました');return;}
@@ -1256,7 +1298,7 @@ function saveProgress(){try{localStorage.setItem('mj_save',JSON.stringify({v:1,s
 function clearSave(){try{localStorage.removeItem('mj_save');}catch(e){}}
 function loadSave(){try{const o=JSON.parse(lsGet('mj_save','null'));
  if(o&&o.v===1&&Array.isArray(o.scores)&&o.scores.length===4&&o.scores.every(x=>Number.isFinite(x))&&Number.isInteger(o.round)&&Number.isInteger(o.rounds)&&o.round>=0&&o.round<o.rounds&&Number.isInteger(o.oya)&&o.oya>=0&&o.oya<4&&Number.isFinite(o.honba)&&Number.isFinite(o.kyotaku)&&o.rules&&typeof o.rules==='object')return o;}catch(e){}return null;}
-function sanitizeTricks(t){const f=v=>Number.isInteger(v)&&v>=0&&v<=9?v:2;return {peek:f(t&&t.peek),ura:f(t&&t.ura),swap:f(t&&t.swap)};}
+function sanitizeTricks(t){const r={};for(const k in TRICK_MAX){const v=t&&t[k];r[k]=Number.isInteger(v)&&v>=0&&v<=9?v:TRICK_MAX[k];}return r;}
 function resumeGame(o){
 S={scores:o.scores.slice(),round:o.round,rounds:o.rounds,baseRounds:o.baseRounds||o.rounds,rules:o.rules,honba:o.honba,kyotaku:o.kyotaku,oya:o.oya,tricks:sanitizeTricks(o.tricks)};
 log(`対局再開: ${roundName()} ${S.honba}本場 / 親:${seatName(S.oya)}`);startKyoku();}
